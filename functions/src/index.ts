@@ -128,7 +128,7 @@ const useHtmlTemplate = (body: any) => {
       </div>
       <div style="width: 40%;">
         <div class="text-header2">Delivery Receipt</div>
-        <div class="text-barcode">211402</div>
+        <div class="text-barcode">${body.receipt_no}</div>
         <table>
           <tr>
             <td><b>Delivery Receipt No</b></td>
@@ -136,7 +136,7 @@ const useHtmlTemplate = (body: any) => {
           </tr>
           <tr>
             <td>Shipping Date:</td>
-            <td class="font-mono">1/28/2022</td>
+            <td class="font-mono">${body.shipping_date}</td>
           </tr>
           <tr>
             <td>Page:</td>
@@ -153,10 +153,10 @@ const useHtmlTemplate = (body: any) => {
               Ship To:
             </div>
             <div class="padding-l-20 text-address">
-              Company Name <br>
-              Address <br>
+              ${body.shipping_company} <br>
+              ${body.shipping_address} <br>
               <br><br>
-              City, State Zipcode
+              ${body.shipping_city}, ${body.shipping_state} ${body.shipping_zipcode}
             </div>
           </div>
         </div>
@@ -166,10 +166,10 @@ const useHtmlTemplate = (body: any) => {
               Sold To:
             </div>
             <div class="padding-l-20 text-address">
-              Company Name <br>
-              Address <br>
+              ${body.dropoff_company} <br>
+              ${body.dropoff_address} <br>
               <br><br>
-              City, State Zipcode
+              ${body.dropoff_city}, ${body.dropoff_state} ${body.dropoff_zipcode}
             </div>
           </div>
         </div>
@@ -244,12 +244,12 @@ export const generateReceiptDoc = functions.runWith(runtimeOpts).https.onRequest
   response.set('Access-Control-Allow-Headers', '*');
 
   if (['OPTIONS', 'GET', 'PUT'].indexOf(request.method) > - 1) {
-    response.end();
+    response.status(405).send('Method Not Allowed');
   } else {
     try {
-      const body = request.body || {};
-      console.log(body);
+      const body = JSON.parse(request.body);
       let html = useHtmlTemplate(body);
+      let file = admin.storage().bucket().file(`receipt_${body.receipt_no}.pdf`)
       pdf.create(html, {
         format: "A4",
         zoomFactor: "1",
@@ -259,8 +259,16 @@ export const generateReceiptDoc = functions.runWith(runtimeOpts).https.onRequest
         if (err) {
           response.status(500).send('error creating document');
         }
-        response.type("application/pdf");
-        response.status(200).send(buffer);
+        file.save(buffer, (stuff: any) => {
+          if (!stuff) {
+            file.makePublic().then(() => {
+              file.getMetadata().then((meta) => {
+                response.type("application/text");
+                response.status(200).send(meta[0].mediaLink);
+              })
+            })
+          }
+        })
       });
     } catch {
       response.status(500).send('error getting content');
