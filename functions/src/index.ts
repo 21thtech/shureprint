@@ -178,32 +178,33 @@ const useHtmlTemplate = (body: any) => {
           <th>Amount</th>
         </tr>
         `;
+  let total = 0;
   for (let item of body.items) {
     createdTemplate += `
-    <tr class="font-mono">
-      <td>${item.name || ''}</td>
-      <td>${item.desc || ''}</td>
-      <td>${item.no || ''}</td>
-      <td>${item.amount || ''}</td>
-    </tr>`;
+      <tr class="font-mono">
+        <td>${item.name || ''}</td>
+        <td>${item.desc || ''}</td>
+        <td>${item.no || ''}</td>
+        <td>${item.amount || ''}</td>
+      </tr>`;
+    total += item.amount;
   }
   createdTemplate += `
-      <tr>
-        <td colspan="4" style="text-align: right;">
-          Total: 1000
-        </td>
-      </tr>
-    </table>
-    </div>
-    <div class="footer d-flex">
-      <div>Received By:</div>
-      <div>__________________________________</div>
-      <div style="margin-left: 30%;">Date:</div>
-      <div>______</div>
-      <div style="margin-left: 5%;">Time:</div>
-      <div>______</div>
-    </div>
-
+          <tr>
+            <td colspan="4" style="text-align: right;">
+              Total: ${total}
+            </td>
+          </tr>
+        </table>
+        <div class="footer d-flex">
+          <div>Received By:</div>
+          <div>__________________________________</div>
+          <div style="margin-left: 30%;">Date:</div>
+          <div>______</div>
+          <div style="margin-left: 5%;">Time:</div>
+          <div>______</div>
+        </div>
+      </div>
     </body>`;
 
   return createdTemplate;
