@@ -26,6 +26,25 @@ const useHtmlTemplate = (body: any) => {
         flex-wrap: wrap;
       }
 
+      .info-table tr {
+        border-bottom: 1px solid #ababab;
+      }
+
+      .content table,
+      .content tr,
+      .content th,
+      .content td {
+        border: 1px solid;
+      }
+
+      .order-table td {
+        text-align: center;
+      }
+
+      td {
+        padding: 5px;
+      }
+
       .text-center {
         text-align: center;
       }
@@ -51,8 +70,8 @@ const useHtmlTemplate = (body: any) => {
         border-collapse: collapse;
       }
 
-      .padding-l-20 {
-        padding-left: 20px;
+      .padding-l-30 {
+        padding-left: 30px;
       }
 
       .padding-y-80 {
@@ -83,30 +102,6 @@ const useHtmlTemplate = (body: any) => {
         text-align: center;
       }
 
-      .content table,
-      .content td {
-        border: 1px solid;
-        text-align: center;
-      }
-
-      .total {
-        text-align: right;
-      }
-
-      .total div {
-        width: 60px;
-        margin: 5px;
-        padding: 1px
-      }
-
-      .total div:first-child {
-        margin-left: auto;
-      }
-
-      .total div:nth-child(even) {
-        border: 1px solid;
-      }
-
       .footer {
         width: 100%;
         position: absolute;
@@ -114,115 +109,92 @@ const useHtmlTemplate = (body: any) => {
         padding-left: 20px;
         padding-right: 20px;
       }
-
-      .order-table td {
-        padding-top: 20px;
-      }
     </style>
   </head>
 
   <body>
+    <div class="text-header2">Delivery Receipt</div><br>
     <div class="d-flex">
-      <div style="width: 60%;">
-        <h3><i>ENVISION PACK</i></h3>
+      <div style="width: 50%;">
       </div>
-      <div style="width: 40%;">
-        <div class="text-header2">Delivery Receipt</div>
-        <div class="text-barcode">${body.receipt_no}</div>
-        <table>
+      <div style="width: 50%;">
+        <table class="info-table">
           <tr>
-            <td><b>Delivery Receipt No</b></td>
-            <td class="font-mono">${body.receipt_no}</td>
+            <td><b>No</b></td>
+            <td class="font-mono">${body.receipt_no || ''}</td>
           </tr>
           <tr>
-            <td>Shipping Date:</td>
-            <td class="font-mono">${body.shipping_date}</td>
+            <td>Date:</td>
+            <td class="font-mono">${body.shipping_date || ''}</td>
           </tr>
           <tr>
-            <td>Page:</td>
-            <td class="font-mono">1</td>
+            <td>PO:</td>
+            <td class="font-mono">${body.po_number || ''}</td>
           </tr>
         </table>
       </div>
     </div>
+    <br>
     <div class="content">
-      <div class="d-flex padding-y-80">
+      <div class="d-flex">
         <div style="width: 50%;">
-          <div class="d-flex">
-            <div class="text-right" style="width: 30%;">
-              Ship To:
-            </div>
-            <div class="padding-l-20 text-address">
-              ${body.shipping_company} <br>
-              ${body.shipping_address} <br>
-              <br><br>
-              ${body.shipping_city}, ${body.shipping_state} ${body.shipping_zipcode}
-            </div>
-          </div>
+          <div class="padding-l-30">From:</div>
         </div>
         <div style="width: 50%;">
-          <div class="d-flex">
-            <div class="text-right" style="width: 30%;">
-              Sold To:
-            </div>
-            <div class="padding-l-20 text-address">
-              ${body.dropoff_company} <br>
-              ${body.dropoff_address} <br>
-              <br><br>
-              ${body.dropoff_city}, ${body.dropoff_state} ${body.dropoff_zipcode}
-            </div>
-          </div>
+          <div class="padding-l-30">To:</div>
         </div>
       </div>
+      <br>
       <table>
         <tr>
-          <td>Salesman</td>
-          <td>Ship Via</td>
-          <td>Truck</td>
-          <td>FOB</td>
+          <th>Company Details</th>
+          <th>Customer Details</th>
         </tr>
-        <tr class="font-mono">
-          <td></td>
-          <td>Our Truck</td>
-          <td>River Side</td>
-          <td>Destination</td>
-        </tr>
-      </table>
-      <table class="order-table">
         <tr>
-          <td>Pkg</td>
-          <td>Release Quantity</td>
-          <td style="width: 30%;">Order No/Description</td>
-          <td>Customer P.O.Number</td>
-          <td># Of Units</td>
-          <td># Per Unit</td>
-          <td>Ship Qty</td>
-          <td>P/C</td>
-          <td>Weight</td>
+          <td>Company Name: <span class="font-mono">${body.shipping_company || ''}</span></td>
+          <td>Customer Name: <span class="font-mono">${body.dropoff_company || ''}</span></td>
         </tr>
-        <tr class="font-mono">
-          <td>2</td>
-          <td>4929 EA</td>
-          <td>206818-1-1 shroud wm queens endcap Z474441-1--
-            scored sheet w</td>
-          <td>1845/</td>
-          <td>2</td>
-          <td>300</td>
-          <td>600 EA</td>
-          <td>P</td>
-          <td>3530</td>
+        <tr>
+          <td>Address: <span class="font-mono">${body.shipping_address || ''}</span> 
+            <br> <span class="font-mono padding-l-30">${body.shipping_city || ''}, ${body.shipping_state || ''} ${body.shipping_zipcode || ''}</span></td>
+          <td>Address: <span class="font-mono">${body.dropoff_address || ''}</span>
+            <br> <span class="font-mono padding-l-30">${body.dropoff_city || ''}, ${body.dropoff_state || ''} ${body.dropoff_zipcode || ''}</span></td>
+        </tr>
+        <tr>
+          <td>Phone: <span class="font-mono">${body.shipping_phone || ''}</span></td>
+          <td>Phone: <span class="font-mono">${body.dropoff_phone || ''}</span></td>
+        </tr>
+        <tr>
+          <td>Email: <span class="font-mono">${body.shipping_email || ''}</span></td>
+          <td>Email: <span class="font-mono">${body.dropoff_email || ''}</span></td>
         </tr>
       </table>
       <br>
-      <div class="d-flex total">
-        <div>Total SQA:</div>
-        <div> 132154</div>
-        <div>Total Weight:</div>
-        <div> 17985</div>
-      </p>
-    </div>`;
-
+      <table class="order-table">
+        <tr>
+          <th>Item</th>
+          <th style="width: 50%;">Description</th>
+          <th>No. of Units</th>
+          <th>Amount</th>
+        </tr>
+        `;
+  for (let item of body.items) {
+    createdTemplate += `
+    <tr class="font-mono">
+      <td>${item.name || ''}</td>
+      <td>${item.desc || ''}</td>
+      <td>${item.no || ''}</td>
+      <td>${item.amount || ''}</td>
+    </tr>`;
+  }
   createdTemplate += `
+      <tr>
+        <td colspan="4" style="text-align: right;">
+          Total: 1000
+        </td>
+      </tr>
+    </table>
+    </div>
     <div class="footer d-flex">
       <div>Received By:</div>
       <div>__________________________________</div>
