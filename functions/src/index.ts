@@ -109,6 +109,18 @@ const useHtmlTemplate = (body: any) => {
         padding-left: 20px;
         padding-right: 20px;
       }
+
+      .signature_div {
+        position: relative;
+        width: 200px;
+        border-bottom: 1px solid grey;
+      }
+
+      .signature {
+        position: absolute;
+        width: 100%;
+        top: -55px;
+      }
     </style>
   </head>
 
@@ -190,23 +202,18 @@ const useHtmlTemplate = (body: any) => {
     total += item.amount;
   }
   createdTemplate += `
-          <tr>
-            <td colspan="4" style="text-align: right;">
-              Total: ${total}
-            </td>
-          </tr>
-        </table>
-        <div class="footer d-flex">
-          <div>Received By:</div>
-          <div>__________________________________</div>
-          <div style="margin-left: 30%;">Date:</div>
-          <div>______</div>
-          <div style="margin-left: 5%;">Time:</div>
-          <div>______</div>
-        </div>
+        <tr>
+          <td colspan="4" style="text-align: right;">
+            Total: ${total}
+          </td>
+        </tr>
+      </table>
+      <div class="footer d-flex">
+        <div>Received By:</div>
+        <div class="signature_div">${body.signature_link ? `<img src="${body.signature_link}" class="signature" alt="">` : ''}</div>
       </div>
+    </div>
     </body>`;
-
   return createdTemplate;
 }
 
@@ -222,7 +229,7 @@ export const generateReceiptDoc = functions.runWith(runtimeOpts).https.onRequest
     try {
       const body = JSON.parse(request.body);
       let html = useHtmlTemplate(body);
-      let file = admin.storage().bucket().file(`receipt_${body.receipt_no}.pdf`)
+      let file = admin.storage().bucket().file(`receipt_${body.receipt_no}${body.signature_link ? '_signed' : ''}.pdf`)
       pdf.create(html, {
         format: "A4",
         zoomFactor: "1",
