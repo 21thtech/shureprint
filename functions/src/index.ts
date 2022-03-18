@@ -141,7 +141,7 @@ const useReceiptHtml = (body: any) => {
           </tr>
           <tr>
             <td>PO:</td>
-            <td class="font-mono">${body.po_number || ''}</td>
+            <td class="font-mono">${body.po_number || '0'}</td>
           </tr>
         </table>
       </div>
@@ -177,8 +177,8 @@ const useReceiptHtml = (body: any) => {
           <td>Phone: <span class="font-mono">${body.dropoff_phone || ''}</span></td>
         </tr>
         <tr>
-          <td>Email: <span class="font-mono">${body.shipping_email || ''}</span></td>
-          <td>Email: <span class="font-mono">${body.dropoff_email || ''}</span></td>
+          <td>Email: <span class="font-mono" style="text-transform: lowercase;">${body.shipping_email || ''}</span></td>
+          <td>Email: <span class="font-mono" style="text-transform: lowercase;">${body.dropoff_email || ''}</span></td>
         </tr>
       </table>
       <br>
