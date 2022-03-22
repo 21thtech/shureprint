@@ -294,7 +294,7 @@ const useQuoteHTML = (body: any) => {
       .text-subheader {
         padding-left: 10px;
         width: calc(20% - 12px);
-        border-left: solid 2px lightgrey;
+        border-left: solid 1px lightgrey;
       }
 
       .text-barcode {
@@ -356,25 +356,26 @@ const useQuoteHTML = (body: any) => {
       </div>
     </div>
     <hr>
+    <br>
     <div class="d-flex">
       <div style="width: 50%;">
         <b>Customer:</b><br>
+        <b>${body.billing_company || body.customer_company || ''}</b><br>
+        ${body.billing_name || body.customer_name || ''}<br>
+        ${body.billing_address || ''}<br>
+        ${body.billing_city || ''}, ${body.billing_state || ''} ${body.billing_zipcode || ''}<br>
+      </div>
+      <div style="width: 50%;">
+        <b>Ship To:</b><br>
         <b>${body.customer_company || ''}</b><br>
         ${body.customer_name || ''}<br>
         ${body.customer_address || ''}<br>
         ${body.customer_city || ''}, ${body.customer_state || ''} ${body.customer_zipcode || ''}
-      </div>
-      <div style="width: 50%;">
-        <b>Ship To:</b><br>
-        <b>${body.billing_company || ''}</b><br>
-        ${body.billing_name || ''}<br>
-        ${body.billing_address || ''}<br>
-        ${body.billing_city || ''}, ${body.billing_state || ''} ${body.billing_zipcode || ''}<br>
-        <br>
-        <b>Notes: price does not include sales tax or shipping</b>
+        <br><br>
+        <b><i>Notes: price does not include sales tax or shipping</i></b>
       </div>
     </div>
-    <br>
+    <br><br>
     <div class="content">
       <table>
         <tr>
@@ -393,9 +394,9 @@ const useQuoteHTML = (body: any) => {
           <td style="text-align: left;">${item.name || ''}</td>
           <td>${item.option || ''}</td>
           <td>${item.qty || '0'}</td>
-          <td>$${item.unit_price || '0.00'}</td>
-          <td>${item.discount ? ('$' + item.discount) : ''}</td>
-          <td>$${item.sub_total || '0.00'}</td>
+          <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
+          <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>
+          <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>
         </tr>`;
   }
   createdTemplate += `
@@ -408,27 +409,27 @@ const useQuoteHTML = (body: any) => {
         <div style="width: 40%;">
           <div class="d-flex">
             <div style="width: 50%; text-align: right;">
-              Product Cost: <br>
-              Surcharge: <br>
+              Product Cost:<br>
+              Surcharge:<br>
               Delivery Details:
             </div>
             <div style="width: 50%; text-align: right;">
-              $${body.product_cost || '0.00'} <br>
-              $${body.surcharge || '0.00'} <br>
-              $${body.delivery_details || '0.00'}
+              $${body.product_cost ? body.product_cost.toFixed(2) : '0.00'}<br>
+              $${body.surcharge ? body.surcharge.toFixed(2) : '0.00'}<br>
+              $${body.delivery_details ? body.delivery_details.toFixed(2) : '0.00'}
             </div>
           </div>
           <hr>
           <div class="d-flex">
             <div style="width: 50%; text-align: right;">
-              Discount: <br>
-              Sub Total: <br>
-              Tax (9.5%):
+              Discount:<br>
+              Sub Total:<br>
+              Tax (${(body.tax_rate || 0) * 100}%):
             </div>
             <div style="width: 50%; text-align: right;">
-              $$${body.discount || '0.00'} <br>
-              $$${body.sub_total || '0.00'} <br>
-              $$${body.tax || '0.00'}
+              $${body.discount ? body.discount.toFixed(2) : '0.00'}<br>
+              $${body.sub_total ? body.sub_total.toFixed(2) : '0.00'}<br>
+              $${body.tax ? body.tax.toFixed(2) : '0.00'}
             </div>
           </div>
           <br>
@@ -438,7 +439,7 @@ const useQuoteHTML = (body: any) => {
               Total (USD):
             </div>
             <div style="width: 50%; text-align: right; font-weight: bold;">
-              $$${body.total || '0.00'}
+              $${body.total ? body.total.toFixed(2) : '0.00'}
             </div>
           </div>
         </div>
@@ -511,6 +512,7 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
         orientation: "portrait"
       }).toBuffer((err: any, buffer: any) => {
         if (err) {
+          console.log(err.message);
           response.status(500).send('error creating document');
         }
         file.save(buffer, (stuff: any) => {
@@ -524,7 +526,8 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
           }
         })
       });
-    } catch {
+    } catch (err) {
+      console.log(err.message);
       response.status(500).send('error getting content');
     }
   }
