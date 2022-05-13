@@ -1,6 +1,7 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 const pdf = require("html-pdf");
+const request = require('request').defaults({ encoding: null });
 admin.initializeApp();
 
 const runtimeOpts: any = {
@@ -381,7 +382,7 @@ const useQuoteHTML = (body: any) => {
         <tr>
           <th width="10%">Code</th>
           <th width="30%" style="text-align: left;">Item</th>
-          <th width="10%">Options</th>
+          <th width="10%">Description</th>
           <th width="10%">Qty</th>
           <th width="10%">Unit Price</th>
           <th width="10%">Discount</th>
@@ -392,7 +393,7 @@ const useQuoteHTML = (body: any) => {
         <tr>
           <td>${item.code || ''}</td>
           <td style="text-align: left;">${item.name || ''}</td>
-          <td>${item.option || ''}</td>
+          <td>${item.desc || ''}</td>
           <td>${item.qty || '0'}</td>
           <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
           <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>
@@ -401,7 +402,7 @@ const useQuoteHTML = (body: any) => {
   }
   createdTemplate += `
       </table>
-      <hr>
+      <hr>` + (body.showPaymentDetails ? `
       <div class="d-flex">
         <div style="width: 60%">
           <b>Payment Terms</b>
@@ -444,7 +445,7 @@ const useQuoteHTML = (body: any) => {
           </div>
         </div>
       </div>
-      <hr>
+      <hr> ` : ``) + `
       <div class="footer d-flex">
         <div>Received By:</div>
         <div class="signature_div">${body.signature_link ? `<img src="${body.signature_link}" class="signature" alt="">` : ''}</div>
@@ -531,4 +532,13 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
       response.status(500).send('error getting content');
     }
   }
+});
+
+export const getBase64FromUrl = functions.https.onRequest((req: any, res: any) => {
+  request.get(req.query.url, function (err: any, response: any, body: any) {
+    if (!err && res.statusCode == 200) {
+      let data = Buffer.from(body).toString('base64');
+      res.status(200).send(data);
+    }
+  });
 });
