@@ -329,7 +329,7 @@ const useQuoteHTML = (body: any) => {
   <body>
     <div class="d-flex">
       <div style="width: 20%;"><img
-          src="https://firebasestorage.googleapis.com/v0/b/shureprint.appspot.com/o/logo.png?alt=media&token=3d35f50c-7ab3-4d84-aedb-af467e97dc88"
+          src="https://firebasestorage.googleapis.com/v0/b/shureprint.appspot.com/o/Shureprint%20V3.png?alt=media&token=318098c0-3869-4f89-8ce4-7428f5e6ae82"
           width="100%" alt=""></div>
       <div style="width: 80%; font-size: 18px; font-weight: bold; color: grey; text-align: right;">Quote</div>
     </div>
@@ -385,6 +385,7 @@ const useQuoteHTML = (body: any) => {
           <th width="10%">Description</th>
           <th width="10%">Qty</th>
           <th width="10%">Unit Price</th>
+          <th width="10%">Previous Price</th>
           <th width="10%">Discount</th>
           <th width="10%">Sub Total</th>
         </tr>`;
@@ -396,6 +397,7 @@ const useQuoteHTML = (body: any) => {
           <td>${item.desc || ''}</td>
           <td>${item.qty || '0'}</td>
           <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
+          <td>$${item.previous_price ? item.previous_price.toFixed(2) : ''}</td>
           <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>
           <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>
         </tr>`;
@@ -456,6 +458,228 @@ const useQuoteHTML = (body: any) => {
 }
 
 
+const useReturnHTML = (body: any) => {
+  let createdTemplate = `
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href='https://fonts.googleapis.com/css?family=Libre Barcode 39' rel='stylesheet'>
+    <style type="text/css">
+      body {
+        margin: 50px 30px;
+        font-size: 10px;
+      }
+
+      .d-flex {
+        display: -webkit-box;
+        display: -webkit-flex;
+        -webkit-flex-wrap: wrap;
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+
+      .text-right {
+        text-align: right;
+      }
+
+      .font-normal {
+        font-style: normal;
+      }
+
+      .font-mono {
+        font-family: 'Courier New', Courier, monospace;
+        font-style: normal;
+        text-transform: uppercase;
+      }
+
+      table {
+        font-size: inherit;
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        border-top: solid 1px lightgrey;
+        border-bottom: solid 1px lightgrey;
+        background-color: #f2f2f2;
+      }
+
+      td {
+        padding: 5px;
+        text-align: center;
+      }
+
+      .padding-l-30 {
+        padding-left: 30px;
+      }
+
+      .padding-y-80 {
+        padding: 80px 0;
+      }
+
+      .text-address {
+        font-style: normal;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+
+      .text-header2 {
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .text-subheader {
+        padding-left: 10px;
+        width: calc(20% - 12px);
+        border-left: solid 1px lightgrey;
+      }
+
+      .text-barcode {
+        font-family: 'Libre Barcode 39';
+        font-size: 30px;
+        text-align: center;
+      }
+
+      .footer {
+        width: 100%;
+        position: absolute;
+        bottom: 50px;
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .signature_div {
+        position: relative;
+        width: 200px;
+        border-bottom: 1px solid grey;
+      }
+
+      .signature {
+        position: absolute;
+        width: 100%;
+        top: -55px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="d-flex">
+      <div style="width: 30%;"><img
+          src="https://firebasestorage.googleapis.com/v0/b/shureprint.appspot.com/o/Shureprint%20V3.png?alt=media&token=318098c0-3869-4f89-8ce4-7428f5e6ae82"
+          width="100%" alt=""></div>
+      <div style="width: 70%; font-size: 18px; font-weight: bold; color: grey; text-align: right;">Return</div>
+    </div>
+    <br>
+    <div class="d-flex">
+      <div class="text-subheader">
+        <b>Created Date</b><br>
+        ${body.created_date || ''}
+      </div>
+      <div class="text-subheader">
+        <b>Created By</b><br>
+        ${body.created_by || ''}
+      </div>
+      <div class="text-subheader">
+        <b>Ref</b><br>
+        ${body.ref || ''}
+      </div>
+      <div class="text-subheader">
+        <b>Reason for return</b><br>
+        ${body.reason || ''}
+      </div>
+      <div class="text-subheader">
+        <b>Original Order Reference</b><br>
+        ${body.original_reference || ''}
+      </div>
+    </div>
+    <hr>
+    <br>
+    <div class="d-flex">
+      <div style="width: 50%;">
+        <b>Customer:</b><br>
+        <b>${body.billing_company || body.customer_company || ''}</b><br>
+        ${body.billing_name || body.customer_name || ''}<br>
+        ${body.billing_address || ''}<br>
+        ${body.billing_city || ''}, ${body.billing_state || ''} ${body.billing_zipcode || ''}<br>
+      </div>
+      <div style="width: 50%;">
+        <b>Ship To:</b><br>
+        <b>${body.customer_company || ''}</b><br>
+        ${body.customer_name || ''}<br>
+        ${body.customer_address || ''}<br>
+        ${body.customer_city || ''}, ${body.customer_state || ''} ${body.customer_zipcode || ''}
+        <br><br>
+      </div>
+    </div>
+    <br><br>
+    <div class="content">
+      <table>
+        <tr>
+          <th width="10%">Code</th>
+          <th width="30%" style="text-align: left;">Item</th>
+          <th width="10%">Description</th>
+          <th width="10%">Qty</th>
+          <th width="10%">Unit Price</th>
+          <th width="10%">Discount</th>
+          <th width="10%">Sub Total</th>
+        </tr>`;
+  for (let item of body.items) {
+    createdTemplate += `
+        <tr>
+          <td>${item.code || ''}</td>
+          <td style="text-align: left;">${item.name || ''}</td>
+          <td>${item.desc || ''}</td>
+          <td>${item.qty || '0'}</td>
+          <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
+          <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>
+          <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>
+        </tr>`;
+  }
+  createdTemplate += `
+      </table>
+      <hr>
+      <div class="d-flex">
+        <div style="width: 60%">
+          <b>Payment Terms</b>
+        </div>
+        <div style="width: 40%;">
+          <div class="d-flex">
+            <div style="width: 50%; text-align: right;">
+              Sub Total:<br>
+              Tax (${(body.tax_rate || 0) * 100}%):
+            </div>
+            <div style="width: 50%; text-align: right;">
+              $${body.product_cost ? body.product_cost.toFixed(2) : '0.00'}<br>
+              $${body.tax ? body.tax.toFixed(2) : '0.00'}
+            </div>
+          </div>
+          <br>
+
+          <div class="d-flex">
+            <div style="width: 50%; text-align: right; font-weight: bold;">
+              Total (USD):
+            </div>
+            <div style="width: 50%; text-align: right; font-weight: bold;">
+              $${body.total ? body.total.toFixed(2) : '0.00'}
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="footer d-flex">
+        <div>Received By:</div>
+        <div class="signature_div">${body.signature_link ? `<img src="${body.signature_link}" class="signature" alt="">` : ''}</div>
+      </div>
+    </div>
+  </body>`;
+  return createdTemplate;
+}
+
+
 export const generateReceiptDoc = functions.runWith(runtimeOpts).https.onRequest(async (request: any, response: any) => {
   response.set('Access-Control-Allow-Origin', '*');
   response.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
@@ -506,6 +730,46 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
       const body = JSON.parse(request.body);
       let html = useQuoteHTML(body);
       let file = admin.storage().bucket().file(`quote_${body.ref}${body.signature_link ? '_signed' : ''}.pdf`)
+      pdf.create(html, {
+        format: "A4",
+        zoomFactor: "1",
+        border: "0",
+        orientation: "portrait"
+      }).toBuffer((err: any, buffer: any) => {
+        if (err) {
+          console.log(err.message);
+          response.status(500).send('error creating document');
+        }
+        file.save(buffer, (stuff: any) => {
+          if (!stuff) {
+            file.makePublic().then(() => {
+              file.getMetadata().then((meta) => {
+                response.type("application/text");
+                response.status(200).send(meta[0].mediaLink);
+              })
+            })
+          }
+        })
+      });
+    } catch (err) {
+      console.log(err.message);
+      response.status(500).send('error getting content');
+    }
+  }
+});
+
+export const generateReturnDoc = functions.runWith(runtimeOpts).https.onRequest(async (request: any, response: any) => {
+  response.set('Access-Control-Allow-Origin', '*');
+  response.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+  response.set('Access-Control-Allow-Headers', '*');
+
+  if (['OPTIONS', 'GET', 'PUT'].indexOf(request.method) > - 1) {
+    response.status(405).send('Method Not Allowed');
+  } else {
+    try {
+      const body = JSON.parse(request.body);
+      let html = useReturnHTML(body);
+      let file = admin.storage().bucket().file(`return_${body.ref}${body.signature_link ? '_signed' : ''}.pdf`)
       pdf.create(html, {
         format: "A4",
         zoomFactor: "1",
