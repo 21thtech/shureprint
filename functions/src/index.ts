@@ -328,10 +328,10 @@ const useQuoteHTML = (body: any) => {
 
   <body>
     <div class="d-flex">
-      <div style="width: 20%;"><img
+      <div style="width: 30%;"><img
           src="https://firebasestorage.googleapis.com/v0/b/shureprint.appspot.com/o/Shureprint%20V3.png?alt=media&token=318098c0-3869-4f89-8ce4-7428f5e6ae82"
           width="100%" alt=""></div>
-      <div style="width: 80%; font-size: 18px; font-weight: bold; color: grey; text-align: right;">Quote</div>
+      <div style="width: 70%; font-size: 18px; font-weight: bold; color: grey; text-align: right;">Quote</div>
     </div>
     <br>
     <div class="d-flex">
@@ -381,12 +381,14 @@ const useQuoteHTML = (body: any) => {
       <table>
         <tr>
           <th width="10%">Code</th>
-          <th width="30%" style="text-align: left;">Item</th>
-          <th width="10%">Description</th>
-          <th width="10%">Qty</th>
+          <th width="15%" style="text-align: left;">Item</th>
+          <th width="15%">Description</th>
+          <th width="5%">Qty</th>
           <th width="10%">Unit Price</th>
+          <th width="10%">Lead Time</th>
+          <th width="5%">Set Ups</th>` + (body.showDiscount ? `
           <th width="10%">Previous Price</th>
-          <th width="10%">Discount</th>
+          <th width="10%">Discount</th>` : '') + `
           <th width="10%">Sub Total</th>
         </tr>`;
   for (let item of body.items) {
@@ -397,8 +399,10 @@ const useQuoteHTML = (body: any) => {
           <td>${item.desc || ''}</td>
           <td>${item.qty || '0'}</td>
           <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
-          <td>$${item.previous_price ? item.previous_price.toFixed(2) : ''}</td>
-          <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>
+          <td>${item.leadTime || ''}</td>
+          <td>${item.setups ? ('$' + item.setups.toFixed(2)) : ''}</td>` + (body.showDiscount ? `
+          <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
+          <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>` : '') + `
           <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>
         </tr>`;
   }
