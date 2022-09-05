@@ -19,8 +19,8 @@ const runtimeOpts: any = {
 const Mailjet = require('node-mailjet');
 
 const mailjet = new Mailjet({
-  apiKey: functions.config().MJ_APIKEY_PUBLIC || "16e16ce1193edb8d4dff0170e3edffdb",
-  apiSecret: functions.config().MJ_APIKEY_PRIVATE || "d7c564a64a7e43a1fc610fd5da21b553"
+  apiKey: functions.config().MJ_APIKEY_PUBLIC || "a48d7d7b220cc74d7e900e6a2b802ba7",
+  apiSecret: functions.config().MJ_APIKEY_PRIVATE || "7bca17218694f8e29b9859955ba5b85c"
 });
 
 const send = mailjet.post("send", { 'version': 'v3.1' });
@@ -865,151 +865,343 @@ export const getBase64FromUrl = functions.https.onRequest((req: any, res: any) =
   });
 });
 
-export const generateReportCSV = functions.runWith(runtimeOpts).https.onRequest(async (req: any, response: any) => {
-  response.set('Access-Control-Allow-Origin', '*');
-  response.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
-  response.set('Access-Control-Allow-Headers', '*');
+const locationToPayCom: any = {
+  "282508": {
+    r365_code: 1301,
+    paycome_code: "OKS71"
+  },
+  "282509": {
+    r365_code: 101,
+    paycome_code: "0OA74"
+  },
+  "282510": {
+    r365_code: 401,
+    paycome_code: "0OA77"
+  },
+  "282511": {
+    r365_code: 1201,
+    paycome_code: "0OA83"
+  },
+  "282512": {
+    r365_code: 602,
+    paycome_code: "0OA79"
+  },
+  "282514": {
+    r365_code: 701,
+    paycome_code: "0OA80"
+  },
+  "282515": {
+    r365_code: 201,
+    paycome_code: "0OA75"
+  },
+  "282516": {
+    r365_code: 1101,
+    paycome_code: "0OA82"
+  },
+  "282517": {
+    r365_code: 302,
+    paycome_code: "0OA76"
+  },
+  "282518": {
+    r365_code: 501,
+    paycome_code: "0OA78"
+  },
+  "283224": {
+    r365_code: '',
+    paycome_code: "N/A"
+  }
+}
+export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
 
-  if (['OPTIONS', 'POST', 'PUT'].indexOf(req.method) > - 1) {
-    response.status(405).send('Method Not Allowed');
-  } else {
-    let now = new Date();
-    let fromDate = getMonday(now, 0);
-    let toDate = getMonday(now, 1);
-    let time_punches: any[] = [];
-    let users: any = {};
-    let csv_data: any = {};
+  let now = new Date();
+  let fromDate = getMonday(now, 0);
+  let toDate = getMonday(now, 1);
+  let time_punches: any[] = [];
+  let users: any = {};
+  let csv_data: any = {};
+  try {
+    let offset = 0, limit = 20;
+    while (true) {
+      const options = {
+        method: 'GET',
+        url: `https://api.7shifts.com/v1/time_punches?clocked_out[gte]=${fromDate}%2000%3A00%3A00&clocked_out[lte]=${toDate}%2000%3A00%3A00&offset=${offset}`,
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Basic TlJaVVE0TFlITEUyTUJWUzJXOUpEVlBERDc0RFNXRFk6'
+        }
+      };
+
+      let res: any = await doRequest(options);
+      if (res.status === 'success' && res.data.length) {
+        time_punches = [...time_punches, ...res.data];
+        offset += limit;
+      } else {
+        break;
+      }
+    }
+    console.log('Generated Time Punches');
+    let offset1 = 0, limit1 = 300;
+    while (true) {
+      const options = {
+        method: 'GET',
+        url: `https://api.7shifts.com/v1/users?offset=${offset1}`,
+        headers: {
+          Accept: 'application/json',
+          Authorization: 'Basic TlJaVVE0TFlITEUyTUJWUzJXOUpEVlBERDc0RFNXRFk6'
+        }
+      };
+
+      let res: any = await doRequest(options);
+      if (res.status === 'success' && res.data.length) {
+        for (let userData of res.data) {
+          let user = userData.user;
+          users[`${user.id}`] = { ...user };
+        }
+        offset1 += limit1;
+      } else {
+        break;
+      }
+    }
+
+    console.log('Generated Users');
+    for (let data of time_punches) {
+      let time_punch = data.time_punch;
+      if (time_punch.clocked_in_iso && time_punch.clocked_out_iso) {
+        let reg_hours = Math.round(Math.round(new Date(time_punch.clocked_out).getTime() / 1000 - new Date(time_punch.clocked_in).getTime() / 1000) / 3600 * 100) / 100;
+        for (let time_punch_break of data.time_punch_break) {
+          reg_hours -= Math.round(Math.round(new Date(time_punch_break.out).getTime() / 1000 - new Date(time_punch_break.in).getTime() / 1000) / 3600 * 100) / 100;
+        }
+        let ot_hours = reg_hours > 8 ? reg_hours - 8 : 0;
+        let dot_hours = ot_hours > 4 ? ot_hours - 4 : 0;
+        if (!csv_data[`${time_punch.user_id}`]) {
+          let hourly_wage = users[`${time_punch.user_id}`] ? (users[`${time_punch.user_id}`].hourly_wage || 25) : 25;
+          csv_data[`${time_punch.user_id}`] = {
+            ...(locationToPayCom[`${time_punch.location_id}`] || {}),
+            employee_id: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].employee_id : '',
+            first: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].firstname.trim() : '',
+            last: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].lastname.trim() : '',
+            user_id: time_punch.user_id,
+            reg_hours: 0,
+            ot_hours: 0,
+            dot_hours: 0,
+            reg_rate: hourly_wage,
+            ot_rate: hourly_wage * 1.5,
+            dot_rate: hourly_wage * 2,
+            mbp: 0
+          };
+        }
+        csv_data[`${time_punch.user_id}`].reg_hours += reg_hours;
+        csv_data[`${time_punch.user_id}`].ot_hours += ot_hours;
+        csv_data[`${time_punch.user_id}`].dot_hours += dot_hours;
+        csv_data[`${time_punch.user_id}`].mbp += Math.round(csv_data[`${time_punch.user_id}`].reg_rate * (reg_hours + ot_hours * 0.5 + dot_hours) * 100) / 100;
+      }
+    }
+    let converted_csv_data: any[] = [];
+    for (let userId of Object.keys(csv_data)) {
+      converted_csv_data = [...converted_csv_data, csv_data[userId]];
+    }
+    converted_csv_data.sort((a, b) => a.employee_id - b.employee_id);
+    console.log('Get CSV Date');
+    const csv = await json2csvAsync(converted_csv_data, {
+      keys: [
+        { field: 'employee_id', title: 'Employee ID' },
+        { field: 'user_id', title: 'User ID' },
+        { field: 'first', title: 'First Name' },
+        { field: 'last', title: 'Last Name' },
+        { field: 'paycome_code', title: 'Paycom Code' },
+        { field: 'r365_code', title: 'R365 Code' },
+        { field: 'reg_hours', title: 'Reg Hours' },
+        { field: 'ot_hours', title: 'OT Hours' },
+        { field: 'dot_hours', title: 'DOT Hours' },
+        { field: 'reg_rate', title: 'Reg Rate' },
+        { field: 'ot_rate', title: 'OT Rate' },
+        { field: 'dot_rate', title: 'DOT Rate' },
+        { field: 'mbp', title: 'MBP' },
+      ]
+    });
+    const storage = getStorage(app);
+    const csvFileRef = ref(storage, `weekly_wage_report/from ${fromDate} to ${toDate}(Wages).csv`);
+    uploadString(csvFileRef, csv).then((snapshot: any) => {
+      getDownloadURL(csvFileRef).then((downloadURL: string) => {
+        console.log(downloadURL);
+        send.request({
+          Messages: [{
+            "From": {
+              "Email": "connector@hwoodgroup.com",
+              "Name": "Appy",
+            },
+            "To": [{
+              "Email": "michael@hwoodgroup.com",
+              "Name": "Michael Green",
+            }, {
+              "Email": "markkostevych1100@gmail.com",
+              "Name": "Mark Kostevych",
+            }],
+            "Subject": `Weekly Wage Report From ${fromDate} to ${toDate}`,
+            "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly wage report. Thank you.`
+          }]
+        }).then((res: any) => {
+          console.log(res.body);
+          return;
+        }).catch((err: any) => {
+          console.log(err.message);
+          return;
+        })
+      });
+    });
+  } catch (err) {
+    console.log(err.message);
+    return;
+  }
+});
+
+export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
+  let now = new Date();
+  let fromDate = getMonday(now, 0);
+  let toDate = getMonday(now, 1);
+  let accounts = [
+    {
+      location: "Petite Taqueria",
+      user: "michael-green_petite-taqueria",
+      password: "vwLQdp7dNotf"
+    },
+    {
+      location: "Bootsy Bellows",
+      user: "michael-green_bootsy-bellows-2",
+      password: "88ZADAE9DNBC"
+    },
+    {
+      location: "Peppermint Club",
+      user: "michael-green_peppermint",
+      password: "X1gVdkgypoWL"
+    },
+    {
+      location: "Delilah",
+      user: "michael-green_delilah",
+      password: "3WgrMsw3zRyH"
+    },
+    {
+      location: "Slab BBQ LA",
+      user: "michael-green_slab-la",
+      password: "s4dzzx1-seEN"
+    },
+    {
+      location: "The Nice Guy",
+      user: "michael-green_the-nice-guy",
+      password: "ESSshcA1k1bS"
+    },
+    {
+      location: "SHOREbar",
+      user: "michael-green_shorebar",
+      password: "zEHXeXRGZEVX"
+    },
+    {
+      location: "Poppy",
+      user: "michael-green_poppy",
+      password: "hTWCQJgVGyWR"
+    },
+    {
+      location: "Petite Taqueria",
+      user: "michael-green_petite-taqueria",
+      password: "vwLQdp7dNotf"
+    }
+  ]
+  let res: any = {};
+  let data = '"employee_id","first_name","last_name","role","cash_tips","card_tips","auto_grat","total_tips","location_name"\r\n';
+  for (let acc of accounts)
     try {
-      let offset = 0, limit = 20;
+      let offset = 0, limit = 500;
+      let checks: any[] = [];
       while (true) {
         const options = {
           method: 'GET',
-          url: `https://api.7shifts.com/v1/time_punches?clocked_out[gte]=${fromDate}%2000%3A00%3A00&clocked_out[lte]=${toDate}%2000%3A00%3A00&offset=${offset}`,
+          url: `https://api.breadcrumb.com/ws/v2/checks.json?start=${fromDate}T00%3A00%3A00-08%3A00&end=${toDate}T00%3A00%3A00-08%3A00&offset=${offset}`,
           headers: {
             Accept: 'application/json',
-            Authorization: 'Basic TlJaVVE0TFlITEUyTUJWUzJXOUpEVlBERDc0RFNXRFk6'
+            "X-Breadcrumb-API-Key": '3048326406c4964a2b917b9518370685',
+            "X-Breadcrumb-Username": acc.user,
+            "X-Breadcrumb-Password": acc.password
           }
         };
-
-        let res: any = await doRequest(options);
-        if (res.status === 'success' && res.data.length) {
-          time_punches = [...time_punches, ...res.data];
+        console.log(acc.location, options.url);
+        let result: any = await doRequest(options);
+        if (result.objects?.length) {
+          console.log("Results: ", result.objects.length);
+          checks = [...checks, ...result.objects];
           offset += limit;
         } else {
           break;
         }
       }
-      console.log('Generated Time Punches');
-      let offset1 = 0, limit1 = 300;
-      while (true) {
-        const options = {
-          method: 'GET',
-          url: `https://api.7shifts.com/v1/users?offset=${offset1}`,
-          headers: {
-            Accept: 'application/json',
-            Authorization: 'Basic TlJaVVE0TFlITEUyTUJWUzJXOUpEVlBERDc0RFNXRFk6'
+      for (let obj of checks) {
+        let key = obj.employee_id + '___' + acc.location;
+        if (res[key] == undefined)
+          res[key] = {
+            employee_name: obj.employee_name,
+            employee_role_name: obj.employee_role_name,
+            cash_tips: 0,
+            card_tips: 0,
+            auto_grat: 0
           }
-        };
+        res[key].auto_grat += Number(obj.mandatory_tip_amount);
+        if (obj.payments != undefined)
+          for (let payment of obj.payments) {
+            let key = payment.employee_id + '___' + acc.location;
+            if (res[key] == undefined)
+              res[key] = {
+                employee_name: payment.employee_name,
+                employee_role_name: payment.employee_role_name,
+                cash_tips: 0,
+                card_tips: 0,
+                auto_grat: 0
+              }
+            if (payment.type == "Cash") res[key].cash_tips += Number(payment.tip_amount);
+            else if (payment.type == "Credit") res[key].card_tips += Number(payment.tip_amount);
+            else if (payment.tip_amount > 0) console.log(key + ' ' + payment.type + ' ' + payment.tip_amount);
+          }
+      }
+    } catch (err) {
+      console.log(err);
+      return;
+    }
+  for (let key in res) {
+    let spl = key.split('___');
+    let spl1 = res[key].employee_name.split(' ');
+    data += '"' + spl[0] + '","' + spl1[0] + '","' + spl1[spl1.length - 1] + '","' + res[key].employee_role_name + '","' + res[key].cash_tips + '","' + res[key].card_tips + '","' + res[key].auto_grat + '","' + (res[key].cash_tips + res[key].card_tips + res[key].auto_grat) + '","' + spl[1] + '"\r\n';
+  };
 
-        let res: any = await doRequest(options);
-        if (res.status === 'success' && res.data.length) {
-          for (let userData of res.data) {
-            let user = userData.user;
-            users[`${user.id}`] = { ...user };
-          }
-          offset1 += limit1;
-        } else {
-          break;
-        }
-      }
-
-      console.log('Generated Users');
-      for (let data of time_punches) {
-        let time_punch = data.time_punch;
-        if (time_punch.clocked_in_iso && time_punch.clocked_out_iso) {
-          let reg_hours = Math.round(Math.round(new Date(time_punch.clocked_out).getTime() / 1000 - new Date(time_punch.clocked_in).getTime() / 1000) / 3600 * 100) / 100;
-          for (let time_punch_break of data.time_punch_break) {
-            reg_hours -= Math.round(Math.round(new Date(time_punch_break.out).getTime() / 1000 - new Date(time_punch_break.in).getTime() / 1000) / 3600 * 100) / 100;
-          }
-          let ot_hours = reg_hours > 8 ? reg_hours - 8 : 0;
-          let dot_hours = ot_hours > 4 ? ot_hours - 4 : 0;
-          if (!csv_data[`${time_punch.user_id}`]) {
-            let hourly_wage = users[`${time_punch.user_id}`] ? (users[`${time_punch.user_id}`].hourly_wage || 25) : 25;
-            csv_data[`${time_punch.user_id}`] = {
-              employee_id: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].employee_id : '',
-              first: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].firstname.trim() : '',
-              last: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].lastname.trim() : '',
-              user_id: time_punch.user_id,
-              paycome_code: '0OA74',
-              r365_code: 101,
-              reg_hours: 0,
-              ot_hours: 0,
-              dot_hours: 0,
-              reg_rate: hourly_wage,
-              ot_rate: hourly_wage * 1.5,
-              dot_rate: hourly_wage * 2,
-              mbp: 0
-            };
-          }
-          csv_data[`${time_punch.user_id}`].reg_hours += reg_hours;
-          csv_data[`${time_punch.user_id}`].ot_hours += ot_hours;
-          csv_data[`${time_punch.user_id}`].dot_hours += dot_hours;
-          csv_data[`${time_punch.user_id}`].mbp += Math.round(csv_data[`${time_punch.user_id}`].reg_rate * (reg_hours + ot_hours * 0.5 + dot_hours) * 100) / 100;
-        }
-      }
-      let converted_csv_data: any[] = [];
-      for (let userId of Object.keys(csv_data)) {
-        converted_csv_data = [...converted_csv_data, csv_data[userId]];
-      }
-      converted_csv_data.sort((a, b) => a.employee_id - b.employee_id);
-      console.log('Get CSV Date');
-      const csv = await json2csvAsync(converted_csv_data, {
-        keys: [
-          { field: 'employee_id', title: 'Employee ID' },
-          { field: 'user_id', title: 'User ID' },
-          { field: 'first', title: 'First Name' },
-          { field: 'last', title: 'Last Name' },
-          { field: 'paycome_code', title: 'Paycom Code' },
-          { field: 'r365_code', title: 'R365 Code' },
-          { field: 'reg_hours', title: 'Reg Hours' },
-          { field: 'ot_hours', title: 'OT Hours' },
-          { field: 'dot_hours', title: 'DOT Hours' },
-          { field: 'reg_rate', title: 'Reg Rate' },
-          { field: 'ot_rate', title: 'OT Rate' },
-          { field: 'dot_rate', title: 'DOT Rate' },
-          { field: 'mbp', title: 'MBP' },
-        ]
-      });
-      const storage = getStorage(app);
-      const csvFileRef = ref(storage, `weekly_report/from ${fromDate} to ${toDate}.csv`);
-      uploadString(csvFileRef, csv).then((snapshot: any) => {
-        getDownloadURL(csvFileRef).then((downloadURL: string) => {
-          console.log(downloadURL);
+  let file = admin.storage().bucket().file(`weekly_tips_report/from ${fromDate} to ${toDate}(Tips).csv`);
+  file.save(data, (stuff: any) => {
+    if (!stuff) {
+      file.makePublic().then(() => {
+        file.getMetadata().then((meta) => {
           send.request({
             Messages: [{
               "From": {
-                "Email": "customerservice@maplesoft.com",
-                "Name": "Maplesoft",
+                "Email": "connector@hwoodgroup.com",
+                "Name": "Appy",
               },
               "To": [{
                 "Email": "michael@hwoodgroup.com",
                 "Name": "Michael Green",
+              }, {
+                "Email": "markkostevych1100@gmail.com",
+                "Name": "Mark Kostevych",
               }],
-              "Subject": `Weekly Wage Report From ${fromDate} to ${toDate}`,
-              "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly wage report. Thank you.`
+              "Subject": `Weekly Tips Report From ${fromDate} to ${toDate}`,
+              "HTMLPart": `Hello sir, click <a href="${meta[0].mediaLink}">Here</a> to download weekly wage report. Thank you.`
             }]
           }).then((res: any) => {
-            response.status(200).send(res.body);
+            console.log(res.body);
+            return;
           }).catch((err: any) => {
-            response.status(500).send(err.message);
+            console.log(err.message);
+            return;
           })
-        });
-      });
-    } catch (err) {
-      console.log(err.message);
-      response.status(500).send('error getting content');
+        })
+      })
     }
-  }
+  })
 });
 
 const getMonday = (d: Date, week: number) => {
