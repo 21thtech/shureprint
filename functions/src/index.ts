@@ -1056,10 +1056,11 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
 });
 
 export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
-  let now = new Date();
-  let fromDate = getMonday(now, 0);
-  let toDate = getMonday(now, 1);
-  let accounts = [
+  const now = new Date();
+  const fromDate = getMonday(now, 0);
+  const toDate = getMonday(now, 1);
+  const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
+  const accounts = [
     {
       location: "Petite Taqueria",
       user: "michael-green_petite-taqueria",
@@ -1106,11 +1107,42 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
       password: "vwLQdp7dNotf"
     }
   ]
-  let res: any = {};
-  let data = '"employee_id","first_name","last_name","role","cash_tips","card_tips","auto_grat","total_tips","location_name"\r\n';
+  const employees: any = {};
+  let data = '"Employee ID","First Name","Last Name","Role","Cash Tips","Card Tips","AutoGrat","Total Tips","Location Name"\r\n';
   for (let acc of accounts)
     try {
       let offset = 0, limit = 500;
+      while (true) {
+        const options = {
+          method: 'GET',
+          url: `https://api.breadcrumb.com/ws/v2/employees.json?offset=${offset}&limit=${limit}`,
+          headers: {
+            Accept: 'application/json',
+            "X-Breadcrumb-API-Key": Upserve_API_KEY,
+            "X-Breadcrumb-Username": acc.user,
+            "X-Breadcrumb-Password": acc.password
+          }
+        };
+        let result: any = await doRequest(options);
+        if (result.objects?.length) {
+          console.log("Results: ", result.objects.length);
+          for (let employee of result.objects) {
+            employees[employee.id] = {
+              ...employee,
+              cash_tips: 0,
+              card_tips: 0,
+              auto_grat: 0,
+              role_name: employee.roles[0].role_name || '',
+              location: acc.location
+            };
+          }
+          if (result.meta.next == null) break;
+          offset += limit;
+        } else {
+          break;
+        }
+      }
+      offset = 0;
       let checks: any[] = [];
       while (true) {
         const options = {
@@ -1118,56 +1150,42 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
           url: `https://api.breadcrumb.com/ws/v2/checks.json?start=${fromDate}T00%3A00%3A00-08%3A00&end=${toDate}T00%3A00%3A00-08%3A00&offset=${offset}`,
           headers: {
             Accept: 'application/json',
-            "X-Breadcrumb-API-Key": '3048326406c4964a2b917b9518370685',
+            "X-Breadcrumb-API-Key": Upserve_API_KEY,
             "X-Breadcrumb-Username": acc.user,
             "X-Breadcrumb-Password": acc.password
           }
         };
-        console.log(acc.location, options.url);
         let result: any = await doRequest(options);
         if (result.objects?.length) {
           console.log("Results: ", result.objects.length);
           checks = [...checks, ...result.objects];
+          if (result.meta.next == null) break;
           offset += limit;
         } else {
           break;
         }
       }
       for (let obj of checks) {
-        let key = obj.employee_id + '___' + acc.location;
-        if (res[key] == undefined)
-          res[key] = {
-            employee_name: obj.employee_name,
-            employee_role_name: obj.employee_role_name,
-            cash_tips: 0,
-            card_tips: 0,
-            auto_grat: 0
-          }
-        res[key].auto_grat += Number(obj.mandatory_tip_amount);
+        if (!employees[obj.employee_id]) {
+          continue;
+        }
+        employees[obj.employee_id].auto_grat += Number(obj.mandatory_tip_amount);
         if (obj.payments != undefined)
           for (let payment of obj.payments) {
-            let key = payment.employee_id + '___' + acc.location;
-            if (res[key] == undefined)
-              res[key] = {
-                employee_name: payment.employee_name,
-                employee_role_name: payment.employee_role_name,
-                cash_tips: 0,
-                card_tips: 0,
-                auto_grat: 0
-              }
-            if (payment.type == "Cash") res[key].cash_tips += Number(payment.tip_amount);
-            else if (payment.type == "Credit") res[key].card_tips += Number(payment.tip_amount);
-            else if (payment.tip_amount > 0) console.log(key + ' ' + payment.type + ' ' + payment.tip_amount);
+            if (!employees[payment.employee_id]) continue;
+            if (payment.type == "Cash") employees[payment.employee_id].cash_tips += Number(payment.tip_amount);
+            else if (payment.type == "Credit") employees[payment.employee_id].card_tips += Number(payment.tip_amount);
           }
       }
     } catch (err) {
       console.log(err);
       return;
     }
-  for (let key in res) {
-    let spl = key.split('___');
-    let spl1 = res[key].employee_name.split(' ');
-    data += '"' + spl[0] + '","' + spl1[0] + '","' + spl1[spl1.length - 1] + '","' + res[key].employee_role_name + '","' + res[key].cash_tips + '","' + res[key].card_tips + '","' + res[key].auto_grat + '","' + (res[key].cash_tips + res[key].card_tips + res[key].auto_grat) + '","' + spl[1] + '"\r\n';
+  for (let key in employees) {
+    let total_tips = employees[key].cash_tips + employees[key].card_tips + employees[key].auto_grat;
+    if (total_tips > 0) {
+      data += '"' + employees[key].employee_identifier + '","' + employees[key].first_name.trim() + '","' + employees[key].last_name.trim() + '","' + employees[key].role_name + '","' + employees[key].cash_tips + '","' + employees[key].card_tips + '","' + employees[key].auto_grat + '","' + total_tips + '","' + employees[key].location + '"\r\n';
+    }
   };
 
   let file = admin.storage().bucket().file(`weekly_tips_report/from ${fromDate} to ${toDate}(Tips).csv`);
@@ -1189,7 +1207,7 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
                 "Name": "Mark Kostevych",
               }],
               "Subject": `Weekly Tips Report From ${fromDate} to ${toDate}`,
-              "HTMLPart": `Hello sir, click <a href="${meta[0].mediaLink}">Here</a> to download weekly wage report. Thank you.`
+              "HTMLPart": `Hello sir, click <a href="${meta[0].mediaLink}">Here</a> to download weekly tips report. Thank you.`
             }]
           }).then((res: any) => {
             console.log(res.body);
