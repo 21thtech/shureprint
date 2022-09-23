@@ -187,9 +187,9 @@ const useReceiptHtml = (body: any) => {
         </tr>
         <tr>
           <td>Address: <span class="font-mono">${body.shipping_address || ''}</span> 
-            <br> <span class="font-mono padding-l-30">${body.shipping_city || ''}, ${body.shipping_state || ''} ${body.shipping_zipcode || ''}</span></td>
+            <br> <span class="font-mono padding-l-30">${body.shipping_city || ''}${body.shipping_state ? `, ${body.shipping_state}` : ''} ${body.shipping_zipcode || ''}</span></td>
           <td>Address: <span class="font-mono">${body.dropoff_address || ''}</span>
-            <br> <span class="font-mono padding-l-30">${body.dropoff_city || ''}, ${body.dropoff_state || ''} ${body.dropoff_zipcode || ''}</span></td>
+            <br> <span class="font-mono padding-l-30">${body.dropoff_city || ''}${body.dropoff_state ? `, ${body.dropoff_state}` : ''} ${body.dropoff_zipcode || ''}</span></td>
         </tr>
         <tr>
           <td>Phone: <span class="font-mono">${body.shipping_phone || ''}</span></td>
@@ -346,7 +346,7 @@ const useQuoteHTML = (body: any) => {
     <div id="pageHeader">
       <div class="d-flex">
         <div style="width: 40%;"><img src="${logoBase64}" width="100%" alt=""></div>
-        <div style="width: 60%; font-size: 18px; font-weight: bold; color: grey; text-align: right;">Quote</div>
+        <div style="width: 60%; font-size: 15px; font-weight: bold; color: grey; text-align: right;">Quote</div>
       </div>
     </div>
     <div class="d-flex">
@@ -379,14 +379,14 @@ const useQuoteHTML = (body: any) => {
         ${body.billing_company || body.customer_company || ''}<br>
         ${body.billing_name || body.customer_name || ''}<br>
         ${body.billing_address || ''}<br>
-        ${body.billing_city || ''}${`, ${body.billing_state}` || ''} ${body.billing_zipcode || ''}<br>
+        ${body.billing_city || ''}${body.billing_state ? `, ${body.billing_state}` : ''} ${body.billing_zipcode || ''}<br>
       </div>
       <div style="width: 50%;">
         <b>Ship To:</b><br>
         ${body.customer_company || ''}<br>
         ${body.customer_name || ''}<br>
         ${body.customer_address || ''}<br>
-        ${body.customer_city || ''}${`, ${body.customer_state}` || ''} ${body.customer_zipcode || ''}
+        ${body.customer_city || ''}${body.customer_state ? `, ${body.customer_state}` : ''} ${body.customer_zipcode || ''}
         <br><br>
         <b><i>Notes: price does not include sales tax or shipping</i></b>
       </div>
@@ -628,14 +628,14 @@ const useReturnHTML = (body: any) => {
         ${body.billing_company || body.customer_company || ''}<br>
         ${body.billing_name || body.customer_name || ''}<br>
         ${body.billing_address || ''}<br>
-        ${body.billing_city || ''}${`, ${body.billing_state}` || ''} ${body.billing_zipcode || ''}<br>
+        ${body.billing_city || ''}${body.billing_state ? `, ${body.billing_state}` : ''} ${body.billing_zipcode || ''}<br>
       </div>
       <div style="width: 50%;">
         <b>Ship To:</b><br>
         ${body.customer_company || ''}<br>
         ${body.customer_name || ''}<br>
         ${body.customer_address || ''}<br>
-        ${body.customer_city || ''}${`, ${body.customer_state}` || ''} ${body.customer_zipcode || ''}
+        ${body.customer_city || ''}${body.customer_state ? `, ${body.customer_state}` : ''} ${body.customer_zipcode || ''}
         <br><br>
       </div>
     </div>
@@ -770,16 +770,16 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
         format: "A4",
         zoomFactor: "1",
         border: {
-          "top": "50px",
-          "right": "30px",
-          "bottom": "30px",
-          "left": "30px"
+          "top": "20px",
+          "right": "12px",
+          "bottom": "40px",
+          "left": "12px"
         },
         header: {
-          height: "50px"
+          height: "40px"
         },
         footer: {
-          height: "30px"
+          height: "40px"
         },
         orientation: "portrait"
       }).toBuffer((err: any, buffer: any) => {
@@ -868,118 +868,142 @@ export const getBase64FromUrl = functions.https.onRequest((req: any, res: any) =
 const locationToPayCom: any = {
   "282508": {
     r365_code: 1301,
-    paycome_code: "OKS71"
+    paycome_code: "OKS71",
+    location: "Bird Streets Club"
   },
   "282509": {
     r365_code: 101,
-    paycome_code: "0OA74"
+    paycome_code: "0OA74",
+    location: "Bootsy Bellows"
   },
   "282510": {
     r365_code: 401,
-    paycome_code: "0OA77"
+    paycome_code: "0OA77",
+    location: "Delilah"
   },
   "282511": {
     r365_code: 1201,
-    paycome_code: "0OA83"
+    paycome_code: "0OA83",
+    location: "Harriet's Rooftop"
   },
   "282512": {
     r365_code: 602,
-    paycome_code: "0OA79"
+    paycome_code: "0OA79",
+    location: "Petite Taqueria"
   },
   "282514": {
     r365_code: 701,
-    paycome_code: "0OA80"
+    paycome_code: "0OA80",
+    location: "Poppy"
   },
   "282515": {
     r365_code: 201,
-    paycome_code: "0OA75"
+    paycome_code: "0OA75",
+    location: "SHOREbar"
   },
   "282516": {
     r365_code: 1101,
-    paycome_code: "0OA82"
+    paycome_code: "0OA82",
+    location: "Slab BBQ LA"
   },
   "282517": {
     r365_code: 302,
-    paycome_code: "0OA76"
+    paycome_code: "0OA76",
+    location: "The Nice Guy"
   },
   "282518": {
     r365_code: 501,
-    paycome_code: "0OA78"
+    paycome_code: "0OA78",
+    location: "The Peppermint Club"
   },
   "283224": {
-    r365_code: '',
-    paycome_code: "N/A"
+    r365_code: 1004,
+    paycome_code: "N/A",
+    location: "Nate 'n Al's"
   }
 }
 export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
 
+  const company_id = 223218;
+  const ACCESS_TOKEN = "30646533633736342d323230332d343430632d393233322d396362363937613565643731";
   let now = new Date();
   let fromDate = getMonday(now, 0);
   let toDate = getMonday(now, 1);
+  let toDate1 = getSunday(now, 1);
   let time_punches: any[] = [];
   let users: any = {};
   let csv_data: any = {};
   try {
-    let offset = 0, limit = 20;
+    let cursor = '';
     while (true) {
       const options = {
         method: 'GET',
-        url: `https://api.7shifts.com/v1/time_punches?clocked_out[gte]=${fromDate}%2000%3A00%3A00&clocked_out[lte]=${toDate}%2000%3A00%3A00&offset=${offset}`,
+        url: `https://api.7shifts.com/v2/company/${company_id}/time_punches?clocked_in[gte]=${fromDate}%2007%3A00%3A00&clocked_out[lte]=${toDate}%2011%3A00%3A00&cursor=${cursor}`,
         headers: {
           Accept: 'application/json',
-          Authorization: 'Basic TlJaVVE0TFlITEUyTUJWUzJXOUpEVlBERDc0RFNXRFk6'
+          Authorization: `Bearer ${ACCESS_TOKEN}`
         }
       };
 
       let res: any = await doRequest(options);
-      if (res.status === 'success' && res.data.length) {
+      if (!res.error) {
         time_punches = [...time_punches, ...res.data];
-        offset += limit;
+        cursor = res.meta.cursor.next;
+        if (!cursor) {
+          break;
+        }
       } else {
+        console.log(res.error);
         break;
       }
     }
     console.log('Generated Time Punches');
-    let offset1 = 0, limit1 = 300;
+    cursor = '';
+    let limit = 500;
     while (true) {
       const options = {
         method: 'GET',
-        url: `https://api.7shifts.com/v1/users?offset=${offset1}`,
+        url: `https://api.7shifts.com/v2/company/${company_id}/users?cursor=${cursor}&limit=${limit}`,
         headers: {
           Accept: 'application/json',
-          Authorization: 'Basic TlJaVVE0TFlITEUyTUJWUzJXOUpEVlBERDc0RFNXRFk6'
+          Authorization: `Bearer ${ACCESS_TOKEN}`
         }
       };
 
       let res: any = await doRequest(options);
-      if (res.status === 'success' && res.data.length) {
-        for (let userData of res.data) {
-          let user = userData.user;
+      if (!res.error) {
+        for (let user of res.data) {
           users[`${user.id}`] = { ...user };
         }
-        offset1 += limit1;
+        cursor = res.meta.cursor.next;
+        if (!cursor) {
+          break;
+        }
       } else {
+        console.log(res.error);
         break;
       }
     }
 
     console.log('Generated Users');
-    for (let data of time_punches) {
-      let time_punch = data.time_punch;
-      if (time_punch.clocked_in_iso && time_punch.clocked_out_iso) {
-        let reg_hours = Math.round(Math.round(new Date(time_punch.clocked_out).getTime() / 1000 - new Date(time_punch.clocked_in).getTime() / 1000) / 3600 * 100) / 100;
-        for (let time_punch_break of data.time_punch_break) {
-          reg_hours -= Math.round(Math.round(new Date(time_punch_break.out).getTime() / 1000 - new Date(time_punch_break.in).getTime() / 1000) / 3600 * 100) / 100;
+    for (let time_punch of time_punches) {
+      if (time_punch.clocked_in && time_punch.clocked_out && !time_punch.deleted && time_punch.approved) {
+        let reg_hours = new Date(time_punch.clocked_out).getTime() / 1000 - new Date(time_punch.clocked_in).getTime() / 1000
+        for (let time_punch_break of time_punch.breaks) {
+          if (!time_punch_break.paid && !time_punch_break.deleted) {
+            reg_hours -= new Date(time_punch_break.out).getTime() / 1000 - new Date(time_punch_break.in).getTime() / 1000
+          }
         }
+        reg_hours = Math.round(Math.round(reg_hours) / 3600 * 100) / 100;
         let ot_hours = reg_hours > 8 ? reg_hours - 8 : 0;
-        let dot_hours = ot_hours > 4 ? ot_hours - 4 : 0;
-        if (!csv_data[`${time_punch.user_id}`]) {
-          let hourly_wage = users[`${time_punch.user_id}`] ? (users[`${time_punch.user_id}`].hourly_wage || 25) : 25;
-          csv_data[`${time_punch.user_id}`] = {
+        reg_hours -= ot_hours;
+        let hourly_wage = time_punch.hourly_wage / 100 || 0;
+        if (!csv_data[`${time_punch.user_id}_${time_punch.location_id}`]) {
+          csv_data[`${time_punch.user_id}_${time_punch.location_id}`] = {
             ...(locationToPayCom[`${time_punch.location_id}`] || {}),
             employee_id: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].employee_id : '',
-            first: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].firstname.trim() : '',
-            last: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].lastname.trim() : '',
+            first: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].first_name.trim() : '',
+            last: users[`${time_punch.user_id}`] ? users[`${time_punch.user_id}`].last_name.trim() : '',
             user_id: time_punch.user_id,
             reg_hours: 0,
             ot_hours: 0,
@@ -990,15 +1014,22 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
             mbp: 0
           };
         }
-        csv_data[`${time_punch.user_id}`].reg_hours += reg_hours;
-        csv_data[`${time_punch.user_id}`].ot_hours += ot_hours;
-        csv_data[`${time_punch.user_id}`].dot_hours += dot_hours;
-        csv_data[`${time_punch.user_id}`].mbp += Math.round(csv_data[`${time_punch.user_id}`].reg_rate * (reg_hours + ot_hours * 0.5 + dot_hours) * 100) / 100;
+        let more_40_hrs = csv_data[`${time_punch.user_id}_${time_punch.location_id}`].reg_hours + reg_hours - 40;
+        if (more_40_hrs > 0) {
+          ot_hours += more_40_hrs;
+          reg_hours -= more_40_hrs;
+        }
+        csv_data[`${time_punch.user_id}_${time_punch.location_id}`].reg_hours += reg_hours;
+        let dot_hours = ot_hours > 4 ? ot_hours - 4 : 0;
+        ot_hours -= dot_hours;
+        csv_data[`${time_punch.user_id}_${time_punch.location_id}`].ot_hours += ot_hours;
+        csv_data[`${time_punch.user_id}_${time_punch.location_id}`].dot_hours += dot_hours;
+        csv_data[`${time_punch.user_id}_${time_punch.location_id}`].mbp += Math.round(hourly_wage * reg_hours * 100) / 100 + Math.round(hourly_wage * ot_hours * 150) / 100 + Math.round(hourly_wage * dot_hours * 200) / 100;
       }
     }
     let converted_csv_data: any[] = [];
-    for (let userId of Object.keys(csv_data)) {
-      converted_csv_data = [...converted_csv_data, csv_data[userId]];
+    for (let key of Object.keys(csv_data)) {
+      converted_csv_data = [...converted_csv_data, csv_data[key]];
     }
     converted_csv_data.sort((a, b) => a.employee_id - b.employee_id);
     console.log('Get CSV Date');
@@ -1008,6 +1039,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
         { field: 'user_id', title: 'User ID' },
         { field: 'first', title: 'First Name' },
         { field: 'last', title: 'Last Name' },
+        { field: 'location', title: 'Location'},
         { field: 'paycome_code', title: 'Paycom Code' },
         { field: 'r365_code', title: 'R365 Code' },
         { field: 'reg_hours', title: 'Reg Hours' },
@@ -1020,7 +1052,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
       ]
     });
     const storage = getStorage(app);
-    const csvFileRef = ref(storage, `weekly_wage_report/from ${fromDate} to ${toDate}(Wages).csv`);
+    const csvFileRef = ref(storage, `weekly_wage_report/wage_report_all_${fromDate}_${toDate1}.csv`);
     uploadString(csvFileRef, csv).then((snapshot: any) => {
       getDownloadURL(csvFileRef).then((downloadURL: string) => {
         console.log(downloadURL);
@@ -1034,10 +1066,16 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
               "Email": "michael@hwoodgroup.com",
               "Name": "Michael Green",
             }, {
+              "Email": "lydia@hwoodgroup.com",
+              "Name": "Lydia Saylor",
+            }, {
+              "Email": "tharris@hwoodgroup.com",
+              "Name": "Tierra Harris",
+            }, {
               "Email": "markkostevych1100@gmail.com",
               "Name": "Mark Kostevych",
             }],
-            "Subject": `Weekly Wage Report From ${fromDate} to ${toDate}`,
+            "Subject": `Weekly Wage Report From ${fromDate} to ${toDate1}`,
             "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly wage report. Thank you.`
           }]
         }).then((res: any) => {
@@ -1058,7 +1096,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
 export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
   const now = new Date();
   const fromDate = getMonday(now, 0);
-  const toDate = getMonday(now, 1);
+  const toDate1 = getSunday(now, 1);
   const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
   const accounts = [
     {
@@ -1100,11 +1138,6 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
       location: "Poppy",
       user: "michael-green_poppy",
       password: "hTWCQJgVGyWR"
-    },
-    {
-      location: "Petite Taqueria",
-      user: "michael-green_petite-taqueria",
-      password: "vwLQdp7dNotf"
     }
   ]
   const employees: any = {};
@@ -1147,7 +1180,7 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
       while (true) {
         const options = {
           method: 'GET',
-          url: `https://api.breadcrumb.com/ws/v2/checks.json?start=${fromDate}T00%3A00%3A00-08%3A00&end=${toDate}T00%3A00%3A00-08%3A00&offset=${offset}`,
+          url: `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate1}&offset=${offset}`,
           headers: {
             Accept: 'application/json',
             "X-Breadcrumb-API-Key": Upserve_API_KEY,
@@ -1172,9 +1205,8 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
         employees[obj.employee_id].auto_grat += Number(obj.mandatory_tip_amount);
         if (obj.payments != undefined)
           for (let payment of obj.payments) {
-            if (!employees[payment.employee_id]) continue;
-            if (payment.type == "Cash") employees[payment.employee_id].cash_tips += Number(payment.tip_amount);
-            else if (payment.type == "Credit") employees[payment.employee_id].card_tips += Number(payment.tip_amount);
+            if (payment.type == "Cash") employees[obj.employee_id].cash_tips += Number(payment.tip_amount);
+            else if (payment.type == "Credit") employees[obj.employee_id].card_tips += Number(payment.tip_amount);
           }
       }
     } catch (err) {
@@ -1188,7 +1220,7 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
     }
   };
 
-  let file = admin.storage().bucket().file(`weekly_tips_report/from ${fromDate} to ${toDate}(Tips).csv`);
+  let file = admin.storage().bucket().file(`weekly_tips_report/from ${fromDate} to ${toDate1}(Tips).csv`);
   file.save(data, (stuff: any) => {
     if (!stuff) {
       file.makePublic().then(() => {
@@ -1203,10 +1235,16 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
                 "Email": "michael@hwoodgroup.com",
                 "Name": "Michael Green",
               }, {
+                "Email": "lydia@hwoodgroup.com",
+                "Name": "Lydia Saylor",
+              }, {
+                "Email": "tharris@hwoodgroup.com",
+                "Name": "Tierra Harris",
+              }, {
                 "Email": "markkostevych1100@gmail.com",
                 "Name": "Mark Kostevych",
               }],
-              "Subject": `Weekly Tips Report From ${fromDate} to ${toDate}`,
+              "Subject": `Weekly Tips Report From ${fromDate} to ${toDate1}`,
               "HTMLPart": `Hello sir, click <a href="${meta[0].mediaLink}">Here</a> to download weekly tips report. Thank you.`
             }]
           }).then((res: any) => {
@@ -1226,6 +1264,13 @@ const getMonday = (d: Date, week: number) => {
   d = new Date(d);
   var day = d.getDay(),
     diff = d.getDate() - day + (day == 0 ? -6 : 1) + 7 * (week - 1); // adjust when day is sunday
+  return getDateFormat(new Date(d.setDate(diff)));
+}
+
+const getSunday = (d: Date, week: number) => {
+  d = new Date(d);
+  var day = d.getDay(),
+    diff = d.getDate() - day + 7 * (week - 1); // adjust when day is sunday
   return getDateFormat(new Date(d.setDate(diff)));
 }
 
