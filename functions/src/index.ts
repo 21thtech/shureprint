@@ -953,7 +953,7 @@ const locations: any = {
     location: "The Peppermint Club",
     user: "michael-green_peppermint",
     password: "X1gVdkgypoWL",
-    type: "restaurant"
+    type: "nightclub"
   },
   // "283224": 
   "Nate 'n Al's": {
@@ -963,7 +963,7 @@ const locations: any = {
   }
 }
 
-export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
+export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async (context) => {
 
   let now = new Date();
   let fromDate = getMonday(now, 0);
@@ -996,6 +996,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
           first: user.user.first_name.trim(),
           last: user.user.last_name.trim(),
           user_id: user.user.id,
+          role_name: role.role_label,
           reg_hours: Math.round(role.total.regular_hours * 100) / 100,
           ot_hours: Math.round(role.total.overtime_hours * 100) / 100,
           dot_hours: Math.round(role.total.holiday_hours * 100) / 100,
@@ -1014,6 +1015,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
         { field: 'user_id', title: 'User ID' },
         { field: 'first', title: 'First Name' },
         { field: 'last', title: 'Last Name' },
+        { field: 'role_name', title: 'Role' },
         { field: 'location', title: 'Location' },
         { field: 'paycome_code', title: 'Paycom Code' },
         { field: 'r365_code', title: 'R365 Code' },
@@ -1048,7 +1050,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
               "Email": "tharris@hwoodgroup.com",
               "Name": "Tierra Harris",
             }, {
-              "Email": "aguerrero@hwoodgeoup.com",
+              "Email": "aguerrero@hwoodgroup.com",
               "Name": "Ada Guerrero",
             }, {
               "Email": "markkostevych1100@gmail.com",
@@ -1072,10 +1074,10 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
   }
 });
 
-export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
+export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async (context) => {
   const now = new Date();
-  const fromDate = getMonday(now, -1);
-  const toDate = getSunday(now, 0);
+  const fromDate = getMonday(now, 0);
+  const toDate = getSunday(now, 1);
   let users: any[] = [];
   let csv_data: any = {};
   const options = {
@@ -1096,6 +1098,29 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
       let acc = locations[loc];
       if (!acc.user) continue;
       let offset = 0, limit = 500;
+      let checks: any[] = [];
+      while (true) {
+        const options = {
+          method: 'GET',
+          url: `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate}&offset=${offset}`,
+          headers: {
+            Accept: 'application/json',
+            "X-Breadcrumb-API-Key": Upserve_API_KEY,
+            "X-Breadcrumb-Username": acc.user,
+            "X-Breadcrumb-Password": acc.password
+          }
+        };
+        let result: any = await doRequest(options);
+        if (result.objects?.length) {
+          console.log("Results: ", result.objects.length);
+          checks = [...checks, ...result.objects];
+          if (result.meta.next == null) break;
+          offset += limit;
+        } else {
+          break;
+        }
+      }
+      offset = 0;
       while (true) {
         const options = {
           method: 'GET',
@@ -1164,66 +1189,66 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
           pts: 0,
           tips: 0
         };
-        while (true) {
-          const options = {
-            method: 'GET',
-            url: `https://api.breadcrumb.com/ws/v2/timesheets.json?trading_day=${trading_day.id}&limit=${limit}&offset=${offset}`,
-            headers: {
-              Accept: 'application/json',
-              "X-Breadcrumb-API-Key": Upserve_API_KEY,
-              "X-Breadcrumb-Username": acc.user,
-              "X-Breadcrumb-Password": acc.password
-            }
-          };
-          let result: any = await doRequest(options);
-          if (result.objects?.length) {
-            // Iterate TimeSheet
-            for (let timesheet of result.objects) {
-              const employee = employees[timesheet.employee_id];
-              let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}`;
-              if (!csv_data[id]) {
-                csv_data[id] = {
-                  employee_id: employee['employee_identifier'],
-                  first_name: employee['first_name'].trim(),
-                  last_name: employee['last_name'].trim(),
-                  role_name: acc.location === 'Slab BBQ LA' ? 'Server' : timesheet.role_name,
-                  cash_tips: 0,
-                  cc_tips: 0,
-                  auto_grat: 0,
-                  total_tips: 0,
-                  final_tips: 0,
-                  pts: 0,
-                  location: acc.location
-                }
-              }
-              csv_data[id].cash_tips += Number(timesheet.cash_tips);
-              csv_data[id].cc_tips += Number(timesheet.cc_tips);
-              csv_data[id].total_tips += Number(timesheet.total_tips);
 
-              // Apply distribution Rule
-              if (acc.type == 'restaurant') {
-                switch (csv_data[id].role_name) {
-                  case 'Event Server':
-                  case 'Events Server':
-                  case 'Server': { //Server pool
-                    serverPool.tips += parseFloat(timesheet.total_tips);
-                    break;
-                  }
-                  case 'Event Bartender':
-                  case 'Events Bartender':
-                  case 'Bartender': { //Bartender pool
-                    bartenderPool.tips += parseFloat(timesheet.total_tips);
-                    break;
-                  }
-                }
+        let event = {
+          pts: 0,
+          tips: 0
+        };
+
+        for (let check of checks.filter(ck => ck.trading_day_id === trading_day.id)) {
+          const employee = employees[check.employee_id];
+          let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}`;
+          let total_tips = 0;
+          if (!csv_data[id]) {
+            csv_data[id] = {
+              employee_id: employee['employee_identifier'],
+              first_name: employee['first_name'].trim(),
+              last_name: employee['last_name'].trim(),
+              role_name: acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name,
+              cash_tips: 0,
+              cc_tips: 0,
+              auto_grat: 0,
+              total_tips: 0,
+              final_tips: 0,
+              pts: 0,
+              location: acc.location
+            }
+          }
+          csv_data[id].auto_grat += Number(check.mandatory_tip_amount);
+          total_tips += Number(check.mandatory_tip_amount);
+          if (check.payments) {
+            for (let payment of check.payments) {
+              if (payment.type === 'Cash') {
+                csv_data[id].cash_tips += Number(payment.tip_amount);
+                total_tips += Number(payment.tip_amount);
+              }
+              if (payment.type === 'Credit') {
+                csv_data[id].cc_tips += Number(payment.tip_amount);
+                total_tips += Number(payment.tip_amount);
               }
             }
-            if (result.meta.next == null)
-              break;
-            offset += limit;
           }
-          else {
-            break;
+          if (check.items) {
+            let service_charges = check.items.filter((item: any) => (item.name === "Service Charge" || item.name === "Automatic Gratuity") && Number(item.price) > 0.1);
+            event.tips += service_charges.reduce((sum: number, item: any) => sum += Number(item.price), 0);
+          }
+          csv_data[id].total_tips += total_tips;
+          // Apply distribution Rule
+          if (acc.type == 'restaurant') {
+            switch (csv_data[id].role_name) {
+              case 'Event Server':
+              case 'Events Server':
+              case 'Server': { //Server pool
+                serverPool.tips += total_tips;
+                break;
+              }
+              case 'Event Bartender':
+              case 'Events Bartender':
+              case 'Bartender': { //Bartender pool
+                bartenderPool.tips += total_tips;
+                break;
+              }
+            }
           }
         }
 
@@ -1246,49 +1271,82 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
               }
             }
 
-            csv_data[id].auto_grat += shift.total.auto_gratuity;
-            csv_data[id].total_tips += shift.total.auto_gratuity;
             if (acc.type == 'restaurant') {
-              let daily_pts = shift.total.regular_hours >= 3.5 ? 1 : 0;
-              csv_data[id].pts = daily_pts;
+
+              // Determine Point By Distribution Rool
+              let daily_pts = Math.round(shift.total.regular_hours / 6 * 100) / 100;
+              daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
               switch (csv_data[id].role_name) {
                 case 'Event Server':
                 case 'Events Server':
                 case 'Server': { //Server pool
-                  serverPool.pts += daily_pts;
-                  serverPool.tips += shift.total.auto_gratuity;
+                  if (event.tips > 0) {
+                    event.pts += shift.total.regular_hours > 0 ? 1 : 0;
+                    csv_data[id].pts = shift.total.regular_hours > 0 ? 1 : 0;
+                  } else {
+                    serverPool.pts += daily_pts;
+                    csv_data[id].pts = daily_pts;
+                  }
                   break;
                 }
                 case 'Event Bartender':
                 case 'Events Bartender':
                 case 'Bartender': { //Bartender pool
-                  bartenderPool.pts += daily_pts;
-                  bartenderPool.tips += shift.total.auto_gratuity;
+                  if (event.tips > 0) {
+                    event.pts += shift.total.regular_hours > 0 ? 1 : 0;
+                    csv_data[id].pts = shift.total.regular_hours > 0 ? 1 : 0;
+                  } else {
+                    bartenderPool.pts += daily_pts;
+                    csv_data[id].pts = daily_pts;
+                  }
                   break;
                 }
                 case 'Event Busser':
                 case 'Busser':
                 case 'Event Runner':
                 case 'Runner': {
-                  busserRunnerPool.pts += daily_pts;
+                  if (event.tips > 0) {
+                    event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
+                    csv_data[id].pts = shift.total.regular_hours > 0 ? 0.5 : 0;
+                  } else {
+                    busserRunnerPool.pts += daily_pts;
+                    csv_data[id].pts = daily_pts;
+                  }
                   break;
                 }
                 case 'Host':
                 case 'Events Reception':
+                case 'Event Reception':
                 case 'Reception': {
-                  receptionHostPool.pts += daily_pts;
+                  if (event.tips > 0) {
+                    event.pts += shift.total.regular_hours > 0 ? 0.25 : 0;
+                    csv_data[id].pts = shift.total.regular_hours > 0 ? 0.25 : 0;
+                  } else {
+                    receptionHostPool.pts += daily_pts;
+                    csv_data[id].pts = daily_pts;
+                  }
                   break;
                 }
                 case 'Barback':
                 case 'Event Barback': {
-                  barbackPool.pts += daily_pts / 2;
-                  csv_data[id].pts = daily_pts / 2;
+                  if (event.tips > 0) {
+                    event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
+                    csv_data[id].pts = shift.total.regular_hours > 0 ? 0.5 : 0;
+                  } else {
+                    barbackPool.pts += daily_pts / 2;
+                    csv_data[id].pts = daily_pts / 2;
+                  }
                   break;
                 }
               }
             }
           }
         }
+
+        if (event.tips > 0) {
+          event.tips += serverPool.tips + bartenderPool.pts;
+        }
+
         let temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
         busserRunnerPool.tips = busserRunnerPool.pts > 0 ? Math.round(0.285 * serverPool.tips * 100) / 100 : 0;
         receptionHostPool.tips = receptionHostPool.pts > 0 ? Math.round(0.015 * serverPool.tips * 100) / 100 : 0;
@@ -1296,33 +1354,38 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
         serverPool.tips -= temp_tips + busserRunnerPool.tips + receptionHostPool.tips;
         for (let id of Object.keys(csv_data)) {
           if (!csv_data[id].pts) continue;
-          switch (csv_data[id].role_name) {
-            case 'Event Server':
-            case 'Events Server':
-            case 'Server': { //Server pool
-              csv_data[id].final_tips += Math.round(serverPool.tips * csv_data[id].pts / serverPool.pts * 100) / 100;
-              break;
-            }
-            case 'Barback':
-            case 'Event Barback':
-            case 'Event Bartender':
-            case 'Events Bartender':
-            case 'Bartender': { //Bartender pool
-              csv_data[id].final_tips += Math.round(bartenderPool.tips * csv_data[id].pts / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
-              break;
-            }
-            case 'Event Busser':
-            case 'Busser':
-            case 'Event Runner':
-            case 'Runner': {
-              csv_data[id].final_tips += Math.round(busserRunnerPool.tips * csv_data[id].pts / busserRunnerPool.pts * 100) / 100;
-              break;
-            }
-            case 'Host':
-            case 'Events Reception':
-            case 'Reception': {
-              csv_data[id].final_tips += Math.round(receptionHostPool.tips * csv_data[id].pts / receptionHostPool.pts * 100) / 100;
-              break;
+          if (event.tips > 0) {
+            csv_data[id].final_tips += Math.round(event.tips * csv_data[id].pts / event.pts * 100) / 100;
+          } else {
+            switch (csv_data[id].role_name) {
+              case 'Event Server':
+              case 'Events Server':
+              case 'Server': { //Server pool
+                csv_data[id].final_tips += Math.round(serverPool.tips * csv_data[id].pts / serverPool.pts * 100) / 100;
+                break;
+              }
+              case 'Barback':
+              case 'Event Barback':
+              case 'Event Bartender':
+              case 'Events Bartender':
+              case 'Bartender': { //Bartender pool
+                csv_data[id].final_tips += Math.round(bartenderPool.tips * csv_data[id].pts / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
+                break;
+              }
+              case 'Event Busser':
+              case 'Busser':
+              case 'Event Runner':
+              case 'Runner': {
+                csv_data[id].final_tips += Math.round(busserRunnerPool.tips * csv_data[id].pts / busserRunnerPool.pts * 100) / 100;
+                break;
+              }
+              case 'Host':
+              case 'Events Reception':
+              case 'Event Reception':
+              case 'Reception': {
+                csv_data[id].final_tips += Math.round(receptionHostPool.tips * csv_data[id].pts / receptionHostPool.pts * 100) / 100;
+                break;
+              }
             }
           }
           csv_data[id].pts = 0;
@@ -1367,23 +1430,11 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
             "Name": "Appy",
           },
           "To": [{
-            "Email": "michael@hwoodgroup.com",
-            "Name": "Michael Green",
-          }, {
-            "Email": "lydia@hwoodgroup.com",
-            "Name": "Lydia Saylor",
-          }, {
-            "Email": "tharris@hwoodgroup.com",
-            "Name": "Tierra Harris",
-          }, {
-            "Email": "aguerrero@hwoodgeoup.com",
-            "Name": "Ada Guerrero",
-          }, {
             "Email": "markkostevych1100@gmail.com",
             "Name": "Mark Kostevych",
           }],
-          "Subject": `Weekly Wage Report From ${fromDate} to ${toDate}`,
-          "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly wage report. Thank you.`
+          "Subject": `Weekly Tip Report From ${fromDate} to ${toDate}`,
+          "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly tip report. Thank you.`
         }]
       }).then((res: any) => {
         console.log(res.body);
