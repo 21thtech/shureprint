@@ -803,7 +803,7 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
           }
         })
       });
-    } catch (err) {
+    } catch (err: any) {
       console.log(err.message);
       response.status(500).send('error getting content');
     }
@@ -854,7 +854,7 @@ export const generateReturnDoc = functions.runWith(runtimeOpts).https.onRequest(
           }
         })
       });
-    } catch (err) {
+    } catch (err: any) {
       console.log(err.message);
       response.status(500).send('error getting content');
     }
@@ -990,6 +990,16 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
       for (let role of user.roles) {
         let location = locations[role.location_label];
         let hourly_wage = user.weeks[0].shifts.find((shift: any) => shift.role_id === role.role_id).wage;
+        let dot_hours = user.weeks[0].shifts
+          .filter((shift: any) => shift.role_id === role.role_id)
+          .reduce((sum: number, shift: any) => {
+            if (shift.total.overtime_hours > 4 && shift.total.regular_hours === 8) {
+              sum += Math.round(shift.total.overtime_hours * 100) / 100 - 4;
+            } else if (shift.total.overtime_hours > 8 && shift.total.regular_hours < 8) {
+              sum += Math.round(shift.total.overtime_hours * 100) / 100 - 8;
+            }
+            return sum;
+          }, 0);
         converted_csv_data = [...converted_csv_data, {
           ...(location || {}),
           employee_id: user.user.employee_id,
@@ -998,13 +1008,13 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
           user_id: user.user.id,
           role_name: role.role_label,
           reg_hours: Math.round(role.total.regular_hours * 100) / 100,
-          ot_hours: Math.round(role.total.overtime_hours * 100) / 100,
-          dot_hours: Math.round(role.total.holiday_hours * 100) / 100,
+          ot_hours: Math.round(role.total.overtime_hours * 100) / 100 - dot_hours,
+          dot_hours: dot_hours,
           reg_rate: hourly_wage,
           ot_rate: hourly_wage * 1.5,
           dot_rate: hourly_wage * 2,
           exception_costs: role.total.compliance_exceptions_pay,
-          mbp: Math.round(role.total.total_pay * 100) / 100
+          mbp: Math.round((role.total.total_pay + dot_hours * hourly_wage * 0.5) * 100) / 100
         }]
       }
     }
@@ -1068,7 +1078,7 @@ export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.sch
         })
       });
     });
-  } catch (err) {
+  } catch (err: any) {
     console.log(err.message);
     return;
   }
@@ -1197,14 +1207,15 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
 
         for (let check of checks.filter(ck => ck.trading_day_id === trading_day.id)) {
           const employee = employees[check.employee_id];
-          let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}`;
+          const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name;
+          let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}_${role_name}`;
           let total_tips = 0;
           if (!csv_data[id]) {
             csv_data[id] = {
               employee_id: employee['employee_identifier'],
               first_name: employee['first_name'].trim(),
               last_name: employee['last_name'].trim(),
-              role_name: acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name,
+              role_name: role_name,
               cash_tips: 0,
               cc_tips: 0,
               auto_grat: 0,
@@ -1222,7 +1233,7 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
                 csv_data[id].cash_tips += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
-              if (payment.type === 'Credit') {
+              if (payment.type === 'Credit' && payment.type === 'Gift Card') {
                 csv_data[id].cc_tips += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1254,13 +1265,14 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
 
         for (let user of users) {
           for (let shift of user['weeks'][0]['shifts'].filter((sh: any) => sh.location_label === acc.location && sh.date.split(" ")[0] === trading_day.date)) {
-            let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}`;
+            const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : shift.role_label
+            let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
             if (!csv_data[id]) {
               csv_data[id] = {
                 employee_id: user.user['employee_id'],
                 first_name: user.user['first_name'].trim(),
                 last_name: user.user['last_name'].trim(),
-                role_name: acc.location === 'Slab BBQ LA' ? 'Server' : shift.role_label,
+                role_name: role_name,
                 cash_tips: 0,
                 cc_tips: 0,
                 auto_grat: 0,
