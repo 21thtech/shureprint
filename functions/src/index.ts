@@ -30,6 +30,9 @@ const company_id = 223218;
 const ACCESS_TOKEN = "30646533633736342d323230332d343430632d393233322d396362363937613565643731";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
 
+const Airtable = require('airtable');
+const base = new Airtable({ apiKey: 'keyWlcTPyDlqmqPpC' }).base('appm3mga3DgMuxH6M');
+
 const useReceiptHtml = (body: any) => {
   let createdTemplate = `
   <head>
@@ -1090,6 +1093,24 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
   const toDate = getSunday(now, 1);
   let users: any[] = [];
   let csv_data: any = {};
+  let airtable_data: any = {};
+  let airtable_employees: any = {};
+
+  // Get Airtable Employees Data;
+  base('Employees').select({
+    fields: ["Identity"],
+    maxRecords: 1000,
+    view: "Grid view"
+  }).eachPage(function page(records: any[], fetchNextPage: any) {
+    records.forEach((record) => {
+      airtable_employees[record.get('Identity')] = record.getId();
+    });
+    fetchNextPage();
+
+  }, function done(err: any) {
+    if (err) { console.error(err); return; }
+  });
+
   const options = {
     method: 'GET',
     url: `https://api.7shifts.com/v2/reports/hours_and_wages?punches=true&company_id=${company_id}&from=${fromDate}&to=${toDate}`,
@@ -1209,6 +1230,7 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
           const employee = employees[check.employee_id];
           const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name;
           let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}_${role_name}`;
+          let airtable_id = `${trading_day.date}_${id}`;
           let total_tips = 0;
           if (!csv_data[id]) {
             csv_data[id] = {
@@ -1225,16 +1247,32 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
               location: acc.location
             }
           }
+          if (!airtable_data[airtable_id]) {
+            airtable_data[airtable_id] = {
+              "Employee": [],
+              "Week": fromDate,
+              "Day": trading_day.date,
+              "Cash Tips": 0,
+              "Card Tips": 0,
+              "AutoGrat": 0,
+              "Total Tips": 0,
+              "Point": 0,
+              "Final Tips": 0
+            }
+          }
           csv_data[id].auto_grat += Number(check.mandatory_tip_amount);
+          airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
           total_tips += Number(check.mandatory_tip_amount);
           if (check.payments) {
             for (let payment of check.payments) {
               if (payment.type === 'Cash') {
                 csv_data[id].cash_tips += Number(payment.tip_amount);
+                airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
-              if (payment.type === 'Credit' && payment.type === 'Gift Card') {
+              if (payment.type === 'Credit' || payment.type === 'Gift Card') {
                 csv_data[id].cc_tips += Number(payment.tip_amount);
+                airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
             }
@@ -1244,6 +1282,7 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
             event.tips += service_charges.reduce((sum: number, item: any) => sum += Number(item.price), 0);
           }
           csv_data[id].total_tips += total_tips;
+          airtable_data[airtable_id]['Total Tips'] += total_tips;
           // Apply distribution Rule
           if (acc.type == 'restaurant') {
             switch (csv_data[id].role_name) {
@@ -1264,92 +1303,113 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
         }
 
         for (let user of users) {
-          for (let shift of user['weeks'][0]['shifts'].filter((sh: any) => sh.location_label === acc.location && sh.date.split(" ")[0] === trading_day.date)) {
-            const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : shift.role_label
-            let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
-            if (!csv_data[id]) {
-              csv_data[id] = {
-                employee_id: user.user['employee_id'],
-                first_name: user.user['first_name'].trim(),
-                last_name: user.user['last_name'].trim(),
-                role_name: role_name,
-                cash_tips: 0,
-                cc_tips: 0,
-                auto_grat: 0,
-                total_tips: 0,
-                final_tips: 0,
-                pts: 0,
-                location: acc.location
+          for (let role of user.roles) {
+
+            for (let shift of user['weeks'][0]['shifts'].filter((sh: any) =>
+              sh.location_label === acc.location && sh.role_label === role.role_label && sh.date.split(" ")[0] === trading_day.date)) {
+              const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : shift.role_label
+              let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
+              let airtable_id = `${trading_day.date}_${id}`;
+              if (!csv_data[id]) {
+                csv_data[id] = {
+                  employee_id: user.user['employee_id'],
+                  first_name: user.user['first_name'].trim(),
+                  last_name: user.user['last_name'].trim(),
+                  role_name: role_name,
+                  cash_tips: 0,
+                  cc_tips: 0,
+                  auto_grat: 0,
+                  total_tips: 0,
+                  final_tips: 0,
+                  pts: 0,
+                  location: acc.location
+                }
               }
-            }
+              if (!airtable_data[airtable_id]) {
+                airtable_data[airtable_id] = {
+                  "Employee": [],
+                  "Week": fromDate,
+                  "Day": trading_day.date,
+                  "Cash Tips": 0,
+                  "Card Tips": 0,
+                  "AutoGrat": 0,
+                  "Total Tips": 0,
+                  "Point": 0,
+                  "Final Tips": 0
+                }
+              }
 
-            if (acc.type == 'restaurant') {
+              if (acc.type == 'restaurant') {
 
-              // Determine Point By Distribution Rool
-              let daily_pts = Math.round(shift.total.regular_hours / 6 * 100) / 100;
-              daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
-              switch (csv_data[id].role_name) {
-                case 'Event Server':
-                case 'Events Server':
-                case 'Server': { //Server pool
-                  if (event.tips > 0) {
-                    event.pts += shift.total.regular_hours > 0 ? 1 : 0;
-                    csv_data[id].pts = shift.total.regular_hours > 0 ? 1 : 0;
-                  } else {
-                    serverPool.pts += daily_pts;
-                    csv_data[id].pts = daily_pts;
+                // Determine Point By Distribution Rool
+                let daily_pts = Math.round(shift.total.regular_hours / 6 * 100) / 100;
+                let pts;
+                daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
+                switch (csv_data[id].role_name) {
+                  case 'Event Server':
+                  case 'Events Server':
+                  case 'Server': { //Server pool
+                    if (event.tips > 0) {
+                      event.pts += shift.total.regular_hours > 0 ? 1 : 0;
+                      pts = shift.total.regular_hours > 0 ? 1 : 0;
+                    } else {
+                      serverPool.pts += daily_pts;
+                      pts = daily_pts;
+                    }
+                    break;
                   }
-                  break;
-                }
-                case 'Event Bartender':
-                case 'Events Bartender':
-                case 'Bartender': { //Bartender pool
-                  if (event.tips > 0) {
-                    event.pts += shift.total.regular_hours > 0 ? 1 : 0;
-                    csv_data[id].pts = shift.total.regular_hours > 0 ? 1 : 0;
-                  } else {
-                    bartenderPool.pts += daily_pts;
-                    csv_data[id].pts = daily_pts;
+                  case 'Event Bartender':
+                  case 'Events Bartender':
+                  case 'Bartender': { //Bartender pool
+                    if (event.tips > 0) {
+                      event.pts += shift.total.regular_hours > 0 ? 1 : 0;
+                      pts = shift.total.regular_hours > 0 ? 1 : 0;
+                    } else {
+                      bartenderPool.pts += daily_pts;
+                      pts = daily_pts;
+                    }
+                    break;
                   }
-                  break;
-                }
-                case 'Event Busser':
-                case 'Busser':
-                case 'Event Runner':
-                case 'Runner': {
-                  if (event.tips > 0) {
-                    event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
-                    csv_data[id].pts = shift.total.regular_hours > 0 ? 0.5 : 0;
-                  } else {
-                    busserRunnerPool.pts += daily_pts;
-                    csv_data[id].pts = daily_pts;
+                  case 'Event Busser':
+                  case 'Busser':
+                  case 'Event Runner':
+                  case 'Runner': {
+                    if (event.tips > 0) {
+                      event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
+                      pts = shift.total.regular_hours > 0 ? 0.5 : 0;
+                    } else {
+                      busserRunnerPool.pts += daily_pts;
+                      pts = daily_pts;
+                    }
+                    break;
                   }
-                  break;
-                }
-                case 'Host':
-                case 'Events Reception':
-                case 'Event Reception':
-                case 'Reception': {
-                  if (event.tips > 0) {
-                    event.pts += shift.total.regular_hours > 0 ? 0.25 : 0;
-                    csv_data[id].pts = shift.total.regular_hours > 0 ? 0.25 : 0;
-                  } else {
-                    receptionHostPool.pts += daily_pts;
-                    csv_data[id].pts = daily_pts;
+                  case 'Host':
+                  case 'Events Reception':
+                  case 'Event Reception':
+                  case 'Reception': {
+                    if (event.tips > 0) {
+                      event.pts += shift.total.regular_hours > 0 ? 0.25 : 0;
+                      pts = shift.total.regular_hours > 0 ? 0.25 : 0;
+                    } else {
+                      receptionHostPool.pts += daily_pts;
+                      pts = daily_pts;
+                    }
+                    break;
                   }
-                  break;
-                }
-                case 'Barback':
-                case 'Event Barback': {
-                  if (event.tips > 0) {
-                    event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
-                    csv_data[id].pts = shift.total.regular_hours > 0 ? 0.5 : 0;
-                  } else {
-                    barbackPool.pts += daily_pts / 2;
-                    csv_data[id].pts = daily_pts / 2;
+                  case 'Barback':
+                  case 'Event Barback': {
+                    if (event.tips > 0) {
+                      event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
+                      pts = shift.total.regular_hours > 0 ? 0.5 : 0;
+                    } else {
+                      barbackPool.pts += daily_pts / 2;
+                      pts = daily_pts / 2;
+                    }
+                    break;
                   }
-                  break;
                 }
+                csv_data[id].pts = pts;
+                airtable_data[airtable_id]['Point'] = pts;
               }
             }
           }
@@ -1366,14 +1426,15 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
         serverPool.tips -= temp_tips + busserRunnerPool.tips + receptionHostPool.tips;
         for (let id of Object.keys(csv_data)) {
           if (!csv_data[id].pts) continue;
+          let final_tips;
           if (event.tips > 0) {
-            csv_data[id].final_tips += Math.round(event.tips * csv_data[id].pts / event.pts * 100) / 100;
+            final_tips = Math.round(event.tips * csv_data[id].pts / event.pts * 100) / 100;
           } else {
             switch (csv_data[id].role_name) {
               case 'Event Server':
               case 'Events Server':
               case 'Server': { //Server pool
-                csv_data[id].final_tips += Math.round(serverPool.tips * csv_data[id].pts / serverPool.pts * 100) / 100;
+                final_tips = Math.round(serverPool.tips * csv_data[id].pts / serverPool.pts * 100) / 100;
                 break;
               }
               case 'Barback':
@@ -1381,25 +1442,27 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
               case 'Event Bartender':
               case 'Events Bartender':
               case 'Bartender': { //Bartender pool
-                csv_data[id].final_tips += Math.round(bartenderPool.tips * csv_data[id].pts / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
+                final_tips = Math.round(bartenderPool.tips * csv_data[id].pts / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                 break;
               }
               case 'Event Busser':
               case 'Busser':
               case 'Event Runner':
               case 'Runner': {
-                csv_data[id].final_tips += Math.round(busserRunnerPool.tips * csv_data[id].pts / busserRunnerPool.pts * 100) / 100;
+                final_tips = Math.round(busserRunnerPool.tips * csv_data[id].pts / busserRunnerPool.pts * 100) / 100;
                 break;
               }
               case 'Host':
               case 'Events Reception':
               case 'Event Reception':
               case 'Reception': {
-                csv_data[id].final_tips += Math.round(receptionHostPool.tips * csv_data[id].pts / receptionHostPool.pts * 100) / 100;
+                final_tips = Math.round(receptionHostPool.tips * csv_data[id].pts / receptionHostPool.pts * 100) / 100;
                 break;
               }
             }
           }
+          airtable_data[`${trading_day.date}_${id}`]['Final Tips'] = final_tips;
+          csv_data[id].final_tips += final_tips;
           csv_data[id].pts = 0;
         }
       }
@@ -1416,6 +1479,32 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
   converted_csv_data = converted_csv_data.filter(data => data.total_tips || data.final_tips);
   converted_csv_data = converted_csv_data.sort((a, b) => a.first_name - b.first_name).sort((a, b) => a.role_name - b.role_name).sort((a, b) => a.location - b.location);
   console.log('Get CSV Date');
+
+  let converted_airtable_data: any[] = [];
+  for (let key of Object.keys(airtable_data)) {
+    let employee_id = key.slice(11);
+    if (airtable_employees[employee_id] && (airtable_data[key]['Total Tips'] || airtable_data[key]['Final Tips'])) {
+      converted_airtable_data = [...converted_airtable_data, {
+        fields: {
+          ...airtable_data[key],
+          "Employee": [
+            airtable_employees[employee_id]
+          ]
+        }
+      }];
+    }
+  }
+  console.log('Get Airtable Data: ', converted_airtable_data.length);
+  while (converted_airtable_data.length > 0) {
+    try {
+      await base('Tips').create(converted_airtable_data.slice(0, 10));
+      converted_airtable_data = converted_airtable_data.slice(10);
+    } catch (e) {
+      console.log(e);
+    }
+  }
+  console.log('Updated Airtable.');
+
   const csv = await json2csvAsync(converted_csv_data, {
     keys: [
       { field: 'employee_id', title: 'Employee ID' },
