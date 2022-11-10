@@ -1304,113 +1304,116 @@ export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.
 
         for (let user of users) {
           for (let role of user.roles) {
+            const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : role.role_label
+            let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
+            let airtable_id = `${trading_day.date}_${id}`;
+            if (!csv_data[id]) {
+              csv_data[id] = {
+                employee_id: user.user['employee_id'],
+                first_name: user.user['first_name'].trim(),
+                last_name: user.user['last_name'].trim(),
+                role_name: role_name,
+                cash_tips: 0,
+                cc_tips: 0,
+                auto_grat: 0,
+                total_tips: 0,
+                final_tips: 0,
+                pts: 0,
+                location: acc.location
+              }
+            }
+            if (!airtable_data[airtable_id]) {
+              airtable_data[airtable_id] = {
+                "Employee": [],
+                "Week": fromDate,
+                "Day": trading_day.date,
+                "Cash Tips": 0,
+                "Card Tips": 0,
+                "AutoGrat": 0,
+                "Total Tips": 0,
+                "Point": 0,
+                "Final Tips": 0
+              }
+            }
+
+            let total_hours = 0;
 
             for (let shift of user['weeks'][0]['shifts'].filter((sh: any) =>
               sh.location_label === acc.location && sh.role_label === role.role_label && sh.date.split(" ")[0] === trading_day.date)) {
-              const role_name = acc.location === 'Slab BBQ LA' ? 'Server' : shift.role_label
-              let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
-              let airtable_id = `${trading_day.date}_${id}`;
-              if (!csv_data[id]) {
-                csv_data[id] = {
-                  employee_id: user.user['employee_id'],
-                  first_name: user.user['first_name'].trim(),
-                  last_name: user.user['last_name'].trim(),
-                  role_name: role_name,
-                  cash_tips: 0,
-                  cc_tips: 0,
-                  auto_grat: 0,
-                  total_tips: 0,
-                  final_tips: 0,
-                  pts: 0,
-                  location: acc.location
-                }
-              }
-              if (!airtable_data[airtable_id]) {
-                airtable_data[airtable_id] = {
-                  "Employee": [],
-                  "Week": fromDate,
-                  "Day": trading_day.date,
-                  "Cash Tips": 0,
-                  "Card Tips": 0,
-                  "AutoGrat": 0,
-                  "Total Tips": 0,
-                  "Point": 0,
-                  "Final Tips": 0
-                }
-              }
+              total_hours += shift.total.total_hours;
+            }
 
-              if (acc.type == 'restaurant') {
+            if (acc.type == 'restaurant') {
 
-                // Determine Point By Distribution Rool
-                let daily_pts = Math.round(shift.total.regular_hours / 6 * 100) / 100;
-                let pts;
-                daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
-                switch (csv_data[id].role_name) {
-                  case 'Event Server':
-                  case 'Events Server':
-                  case 'Server': { //Server pool
-                    if (event.tips > 0) {
-                      event.pts += shift.total.regular_hours > 0 ? 1 : 0;
-                      pts = shift.total.regular_hours > 0 ? 1 : 0;
-                    } else {
-                      serverPool.pts += daily_pts;
-                      pts = daily_pts;
-                    }
-                    break;
+              // Determine Point By Distribution Rool
+              let daily_pts = Math.round(total_hours / 6 * 100) / 100;
+              let pts;
+              daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
+              switch (csv_data[id].role_name) {
+                case 'Event Server':
+                case 'Events Server':
+                case 'Server': { //Server pool
+                  if (event.tips > 0) {
+                    event.pts += total_hours > 0 ? 1 : 0;
+                    pts = total_hours > 0 ? 1 : 0;
+                  } else {
+                    serverPool.pts += daily_pts;
+                    pts = daily_pts;
                   }
-                  case 'Event Bartender':
-                  case 'Events Bartender':
-                  case 'Bartender': { //Bartender pool
-                    if (event.tips > 0) {
-                      event.pts += shift.total.regular_hours > 0 ? 1 : 0;
-                      pts = shift.total.regular_hours > 0 ? 1 : 0;
-                    } else {
-                      bartenderPool.pts += daily_pts;
-                      pts = daily_pts;
-                    }
-                    break;
-                  }
-                  case 'Event Busser':
-                  case 'Busser':
-                  case 'Event Runner':
-                  case 'Runner': {
-                    if (event.tips > 0) {
-                      event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
-                      pts = shift.total.regular_hours > 0 ? 0.5 : 0;
-                    } else {
-                      busserRunnerPool.pts += daily_pts;
-                      pts = daily_pts;
-                    }
-                    break;
-                  }
-                  case 'Host':
-                  case 'Events Reception':
-                  case 'Event Reception':
-                  case 'Reception': {
-                    if (event.tips > 0) {
-                      event.pts += shift.total.regular_hours > 0 ? 0.25 : 0;
-                      pts = shift.total.regular_hours > 0 ? 0.25 : 0;
-                    } else {
-                      receptionHostPool.pts += daily_pts;
-                      pts = daily_pts;
-                    }
-                    break;
-                  }
-                  case 'Barback':
-                  case 'Event Barback': {
-                    if (event.tips > 0) {
-                      event.pts += shift.total.regular_hours > 0 ? 0.5 : 0;
-                      pts = shift.total.regular_hours > 0 ? 0.5 : 0;
-                    } else {
-                      barbackPool.pts += daily_pts / 2;
-                      pts = daily_pts / 2;
-                    }
-                    break;
-                  }
+                  break;
                 }
-                csv_data[id].pts = pts;
-                airtable_data[airtable_id]['Point'] = pts;
+                case 'Event Bartender':
+                case 'Events Bartender':
+                case 'Bartender': { //Bartender pool
+                  if (event.tips > 0) {
+                    event.pts += total_hours > 0 ? 1 : 0;
+                    pts = total_hours > 0 ? 1 : 0;
+                  } else {
+                    bartenderPool.pts += daily_pts;
+                    pts = daily_pts;
+                  }
+                  break;
+                }
+                case 'Event Busser':
+                case 'Busser':
+                case 'Event Runner':
+                case 'Runner': {
+                  if (event.tips > 0) {
+                    event.pts += total_hours > 0 ? 0.5 : 0;
+                    pts = total_hours > 0 ? 0.5 : 0;
+                  } else {
+                    busserRunnerPool.pts += daily_pts;
+                    pts = daily_pts;
+                  }
+                  break;
+                }
+                case 'Host':
+                case 'Events Reception':
+                case 'Event Reception':
+                case 'Reception': {
+                  if (event.tips > 0) {
+                    event.pts += total_hours > 0 ? 0.25 : 0;
+                    pts = total_hours > 0 ? 0.25 : 0;
+                  } else {
+                    receptionHostPool.pts += daily_pts;
+                    pts = daily_pts;
+                  }
+                  break;
+                }
+                case 'Barback':
+                case 'Event Barback': {
+                  if (event.tips > 0) {
+                    event.pts += total_hours > 0 ? 0.5 : 0;
+                    pts = total_hours > 0 ? 0.5 : 0;
+                  } else {
+                    barbackPool.pts += daily_pts / 2;
+                    pts = daily_pts / 2;
+                  }
+                  break;
+                }
               }
+              csv_data[id].pts = pts;
+              airtable_data[airtable_id]['Point'] = pts;
             }
           }
         }
