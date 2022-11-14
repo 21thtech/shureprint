@@ -1289,6 +1289,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
       );
       console.log("Getting Trading_Days: ", acc.location, trading_days.length);
       for (let trading_day of trading_days) {
+        const weekday = getMonday(trading_day.date, 1)
         let serverPool = {
           pts: 0,
           tips: 0
@@ -1340,7 +1341,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
           if (!airtable_data[airtable_id]) {
             airtable_data[airtable_id] = {
               "Employee": [],
-              "Week": fromDate,
+              "Week": weekday,
               "Day": trading_day.date,
               "Reg Hours": 0,
               "OT Hours": 0,
@@ -1418,7 +1419,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             if (!airtable_data[airtable_id]) {
               airtable_data[airtable_id] = {
                 "Employee": [],
-                "Week": fromDate,
+                "Week": weekday,
                 "Day": trading_day.date,
                 "Reg Hours": 0,
                 "OT Hours": 0,
@@ -1442,8 +1443,8 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               total_hours += shift.total.total_hours;
               regular_hours += shift.total.regular_hours;
               ot_hours += shift.total.overtime_hours;
-              compliance_exceptions_pay += role.total.compliance_exceptions_pay;
-              total_pay += role.total.total_pay;
+              compliance_exceptions_pay += shift.total.compliance_exceptions_pay;
+              total_pay += shift.total.total_pay;
             }
             let over_hours = regular_hours > 8 ? regular_hours - 8 : 0;
             regular_hours -= over_hours;
@@ -1691,3 +1692,19 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
 
   }
 })
+
+export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * *').onRun(async (context) => {
+  const fromDate = new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0];
+  const toDate = new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0];
+  let res: any = await getTipReport(fromDate, toDate, true);
+  let converted_airtable_data: any[] = res.converted_airtable_data;
+
+  while (converted_airtable_data.length > 0) {
+    try {
+      await base('Reports').create(converted_airtable_data.slice(0, 10));
+      converted_airtable_data = converted_airtable_data.slice(10);
+    } catch (e) {
+      console.log(e);
+    }
+  }
+});
