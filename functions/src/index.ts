@@ -966,237 +966,10 @@ const locations: any = {
   }
 }
 
-export const generateWeeklyReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async (context) => {
-
-  let now = new Date();
-  let fromDate = getMonday(now, 0);
-  let toDate = getSunday(now, 1);
-  let users: any[] = [];
-  try {
-
-    const options = {
-      method: 'GET',
-      url: `https://api.7shifts.com/v2/reports/hours_and_wages?punches=true&company_id=${company_id}&from=${fromDate}&to=${toDate}`,
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${ACCESS_TOKEN}`
-      }
-    };
-
-    let res: any = await doRequest(options);
-    users = [...users, ...res.users];
-    console.log('Generated Report');
-
-    let converted_csv_data: any[] = [];
-
-    for (let user of users) {
-      for (let role of user.roles) {
-        let location = locations[role.location_label];
-        let role_name = role.location_label === 'Slab BBQ LA' ? 'Server' : role.role_label
-        switch (role_name) {
-          case 'Event Server':
-          case 'Events Server':
-          case 'Server': { //Server pool
-            role_name = 'Server';
-            break;
-          }
-          case 'Event Bartender':
-          case 'Events Bartender':
-          case 'Bartender': { //Bartender pool
-            role_name = 'Bartender';
-            break;
-          }
-          case 'Event Busser':
-          case 'Busser':
-          case 'Event Runner':
-          case 'Runner': {
-            role_name = 'Support';
-            break;
-          }
-          case 'Host':
-          case 'Events Reception':
-          case 'Event Reception':
-          case 'Reception': {
-            role_name = 'Host';
-            break;
-          }
-          case 'Barback':
-          case 'Event Barback': {
-            role_name = 'Barback';
-            break;
-          }
-        }
-        let hourly_wage = user.weeks[0].shifts.find((shift: any) => shift.role_id === role.role_id).wage;
-        let dot_hours = user.weeks[0].shifts
-          .filter((shift: any) => shift.role_id === role.role_id)
-          .reduce((sum: number, shift: any) => {
-            if (shift.total.overtime_hours > 4 && shift.total.regular_hours === 8) {
-              sum += Math.round(shift.total.overtime_hours * 100) / 100 - 4;
-            } else if (shift.total.overtime_hours > 8 && shift.total.regular_hours < 8) {
-              sum += Math.round(shift.total.overtime_hours * 100) / 100 - 8;
-            }
-            return sum;
-          }, 0);
-
-        converted_csv_data = [...converted_csv_data, {
-          ...(location || {}),
-          employee_id: user.user.employee_id,
-          first: user.user.first_name.trim(),
-          last: user.user.last_name.trim(),
-          user_id: user.user.id,
-          role_name: role_name,
-          reg_hours: Math.round(role.total.regular_hours * 100) / 100,
-          ot_hours: Math.round(role.total.overtime_hours * 100) / 100 - dot_hours,
-          dot_hours: dot_hours,
-          reg_rate: hourly_wage,
-          ot_rate: hourly_wage * 1.5,
-          dot_rate: hourly_wage * 2,
-          exception_costs: role.total.compliance_exceptions_pay,
-          mbp: Math.round((role.total.total_pay + dot_hours * hourly_wage * 0.5) * 100) / 100
-        }]
-      }
-    }
-    console.log('Get CSV Date');
-    const csv = await json2csvAsync(converted_csv_data, {
-      keys: [
-        { field: 'employee_id', title: 'Employee ID' },
-        { field: 'user_id', title: 'User ID' },
-        { field: 'first', title: 'First Name' },
-        { field: 'last', title: 'Last Name' },
-        { field: 'role_name', title: 'Role' },
-        { field: 'location', title: 'Location' },
-        { field: 'paycome_code', title: 'Paycom Code' },
-        { field: 'r365_code', title: 'R365 Code' },
-        { field: 'reg_hours', title: 'Reg Hours' },
-        { field: 'ot_hours', title: 'OT Hours' },
-        { field: 'dot_hours', title: 'DOT Hours' },
-        { field: 'reg_rate', title: 'Reg Rate' },
-        { field: 'ot_rate', title: 'OT Rate' },
-        { field: 'dot_rate', title: 'DOT Rate' },
-        { field: 'exception_costs', title: 'Exception costs' },
-        { field: 'mbp', title: 'MBP' },
-      ]
-    });
-    const storage = getStorage(app);
-    const csvFileRef = ref(storage, `weekly_wage_report/wage_report_all_${fromDate}_${toDate}.csv`);
-    uploadString(csvFileRef, csv).then((snapshot: any) => {
-      getDownloadURL(csvFileRef).then((downloadURL: string) => {
-        console.log(downloadURL);
-        send.request({
-          Messages: [{
-            "From": {
-              "Email": "connector@hwoodgroup.com",
-              "Name": "Appy",
-            },
-            "To": [{
-              "Email": "michael@hwoodgroup.com",
-              "Name": "Michael Green",
-            }, {
-              "Email": "lydia@hwoodgroup.com",
-              "Name": "Lydia Saylor",
-            }, {
-              "Email": "tharris@hwoodgroup.com",
-              "Name": "Tierra Harris",
-            }, {
-              "Email": "aguerrero@hwoodgroup.com",
-              "Name": "Ada Guerrero",
-            }, {
-              "Email": "markkostevych1100@gmail.com",
-              "Name": "Mark Kostevych",
-            }],
-            "Subject": `Weekly Wage Report From ${fromDate} to ${toDate}`,
-            "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly wage report. Thank you.`
-          }]
-        }).then((res: any) => {
-          console.log(res.body);
-          return;
-        }).catch((err: any) => {
-          console.log(err.message);
-          return;
-        })
-      });
-    });
-  } catch (err: any) {
-    console.log(err.message);
-    return;
-  }
-});
-
-export const generateWeeklyPosReportCSV = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async (context) => {
-  const now = new Date();
-  const fromDate = getMonday(now, 0);
-  const toDate = getSunday(now, 1);
-
-  let res: any = await getTipReport(fromDate, toDate);
-  let converted_csv_data: any[] = res.converted_csv_data;
-
-  const csv = await json2csvAsync(converted_csv_data, {
-    keys: [
-      { field: 'employee_id', title: 'Employee ID' },
-      { field: 'first_name', title: 'First Name' },
-      { field: 'last_name', title: 'Last Name' },
-      { field: 'role_name', title: 'Role' },
-      { field: 'cash_tips', title: 'Cash Tips' },
-      { field: 'cc_tips', title: 'Card Tips' },
-      { field: 'auto_grat', title: 'AutoGrat' },
-      { field: 'total_tips', title: 'Total Tips' },
-      { field: 'final_tips', title: 'Final Tips' },
-      { field: 'location', title: 'Location' },
-    ]
-  });
-
-  const storage = getStorage(app);
-  const csvFileRef = ref(storage, `weekly_tips_report/tips_report_all_${fromDate}_${toDate}.csv`);
-  uploadString(csvFileRef, csv).then((snapshot: any) => {
-    getDownloadURL(csvFileRef).then((downloadURL: string) => {
-      console.log(downloadURL);
-      send.request({
-        Messages: [{
-          "From": {
-            "Email": "connector@hwoodgroup.com",
-            "Name": "Appy",
-          },
-          "To": [{
-            "Email": "michael@hwoodgroup.com",
-            "Name": "Michael Green",
-          }, {
-            "Email": "lydia@hwoodgroup.com",
-            "Name": "Lydia Saylor",
-          }, {
-            "Email": "tharris@hwoodgroup.com",
-            "Name": "Tierra Harris",
-          }, {
-            "Email": "aguerrero@hwoodgroup.com",
-            "Name": "Ada Guerrero",
-          }, {
-            "Email": "markkostevych1100@gmail.com",
-            "Name": "Mark Kostevych",
-          }],
-          "Subject": `Weekly Tip Report From ${fromDate} to ${toDate}`,
-          "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly tip report. Thank you.`
-        }]
-      }).then((res: any) => {
-        console.log(res.body);
-        return;
-      }).catch((err: any) => {
-        console.log(err.message);
-        return;
-      })
-    });
-  });
-});
-
 const getMonday = (d: Date, week: number) => {
   d = new Date(d);
   var day = d.getDay(),
     diff = d.getDate() - day + (day == 0 ? -6 : 1) + 7 * (week - 1); // adjust when day is sunday
-  return getDateFormat(new Date(d.setDate(diff)));
-}
-
-const getSunday = (d: Date, week: number) => {
-  d = new Date(d);
-  var day = d.getDay(),
-    diff = d.getDate() - day + (day == 0 ? -7 : 0) + 7 * (week - 1); // adjust when day is sunday
   return getDateFormat(new Date(d.setDate(diff)));
 }
 
@@ -1578,7 +1351,9 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
     converted_csv_data = [...converted_csv_data, csv_data[key]];
   }
   converted_csv_data = converted_csv_data.filter(data => data.total_tips || data.final_tips);
-  converted_csv_data = converted_csv_data.sort((a, b) => a.first_name - b.first_name).sort((a, b) => a.role_name - b.role_name).sort((a, b) => a.location - b.location);
+  converted_csv_data = converted_csv_data.sort((a, b) => a.first.localeCompare(b.first))
+    .sort((a, b) => a.role_name.localeCompare(b.role_name))
+    .sort((a, b) => a.location.localeCompare(b.location))
   console.log('Get CSV Date: ', converted_csv_data.length);
 
   let converted_airtable_data: any[] = [];
@@ -1693,9 +1468,9 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
   }
 })
 
-export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * *').onRun(async (context) => {
-  const fromDate = new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0];
-  const toDate = new Date(new Date().setDate(new Date().getDate() - 2)).toISOString().split('T')[0];
+export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * *').onRun(async (context) => {
+  const fromDate = new Date(new Date().setDate(new Date().getDate() - (new Date().getDay() ? 1 : 7))).toISOString().split('T')[0];
+  const toDate = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0];
   let res: any = await getTipReport(fromDate, toDate, true);
   let converted_airtable_data: any[] = res.converted_airtable_data;
 
@@ -1707,4 +1482,139 @@ export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).p
       console.log(e);
     }
   }
+});
+
+export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async (context) => {
+
+  const weekday = getMonday(new Date(), 0);
+  let csv_data: any = {};
+  let converted_csv_data: any[] = [];
+
+  // Get Airtable Employees Data
+  return base('Reports').select({
+    maxRecords: 2000,
+    view: "Grid view",
+    filterByFormula: "DATESTR(Week) = '" + weekday + "'",
+    pageSize: 100
+  }).eachPage(function page(records: any[], fetchNextPage: any) {
+    records.forEach((record) => {
+      let employee = record.get('Employee')[0];
+      let hourly_wage = record.get('Reg Rate')[0];
+      if (!csv_data[employee]) {
+        csv_data[employee] = {
+          employee_id: record.get('Employee ID')[0],
+          user_id: record.get('POS ID')[0],
+          first: record.get('First')[0],
+          last: record.get('Last')[0],
+          role_name: record.get('Role')[0],
+          location: record.get('Location')[0],
+          paycome_code: record.get('Paycom Code')[0],
+          r365_code: record.get('R365 Code')[0],
+          reg_rate: hourly_wage,
+          ot_rate: hourly_wage * 1.5,
+          dot_rate: hourly_wage * 2,
+          reg_hours: 0,
+          ot_hours: 0,
+          dot_hours: 0,
+          exception_costs: 0,
+          mbp: 0,
+          cash_tips: 0,
+          cc_tips: 0,
+          auto_grat: 0,
+          total_tips: 0,
+          final_tips: 0,
+        }
+      }
+
+      csv_data[employee].reg_hours += Math.round(record.get('Reg Hours') * 100) / 100;
+      csv_data[employee].ot_hours += Math.round(record.get('OT Hours') * 100) / 100;
+      csv_data[employee].dot_hours += Math.round(record.get('DOT Hours') * 100) / 100;
+      csv_data[employee].exception_costs += Math.round(record.get('Exceptions Pay') * 100) / 100;
+      csv_data[employee].mbp += Math.round(record.get('Total Pay') * 100) / 100;
+      csv_data[employee].cash_tips += Math.round(record.get('Cash Tips') * 100) / 100;
+      csv_data[employee].cc_tips += Math.round(record.get('Card Tips') * 100) / 100;
+      csv_data[employee].auto_grat += Math.round(record.get('AutoGrat') * 100) / 100;
+      csv_data[employee].total_tips += Math.round(record.get('Total Tips') * 100) / 100;
+      csv_data[employee].final_tips += Math.round(record.get('Final Tips') * 100) / 100;
+    });
+    fetchNextPage();
+
+  }, async function done(err: any) {
+    if (err) { console.error(err); return; }
+    console.log('Get Airtable Reports For Week ' + weekday);
+    for (let key of Object.keys(csv_data)) {
+      converted_csv_data = [...converted_csv_data, csv_data[key]];
+    }
+    converted_csv_data = converted_csv_data.sort((a, b) => a.first.localeCompare(b.first))
+      .sort((a, b) => a.role_name.localeCompare(b.role_name))
+      .sort((a, b) => a.location.localeCompare(b.location));
+    console.log('Get CSV Date: ', converted_csv_data.length);
+
+    const csv = await json2csvAsync(converted_csv_data, {
+      keys: [
+        { field: 'employee_id', title: 'Employee ID' },
+        { field: 'user_id', title: 'User ID' },
+        { field: 'first', title: 'First Name' },
+        { field: 'last', title: 'Last Name' },
+        { field: 'role_name', title: 'Role' },
+        { field: 'location', title: 'Location' },
+        { field: 'paycome_code', title: 'Paycom Code' },
+        { field: 'r365_code', title: 'R365 Code' },
+        { field: 'reg_hours', title: 'Reg Hours' },
+        { field: 'ot_hours', title: 'OT Hours' },
+        { field: 'dot_hours', title: 'DOT Hours' },
+        { field: 'reg_rate', title: 'Reg Rate' },
+        { field: 'ot_rate', title: 'OT Rate' },
+        { field: 'dot_rate', title: 'DOT Rate' },
+        { field: 'exception_costs', title: 'Exception costs' },
+        { field: 'mbp', title: 'MBP' },
+        { field: 'cash_tips', title: 'Cash Tips' },
+        { field: 'cc_tips', title: 'Card Tips' },
+        { field: 'auto_grat', title: 'AutoGrat' },
+        { field: 'total_tips', title: 'Total Tips' },
+        { field: 'final_tips', title: 'Final Tips' },
+      ]
+    });
+
+    const storage = getStorage(app);
+    const csvFileRef = ref(storage, `weekly_report/weekly_report_for_${weekday}(wages, tips).csv`);
+    return uploadString(csvFileRef, csv).then((snapshot: any) => {
+      return getDownloadURL(csvFileRef).then((downloadURL: string) => {
+        console.log(downloadURL);
+        return send.request({
+          Messages: [{
+            "From": {
+              "Email": "connector@hwoodgroup.com",
+              "Name": "Appy",
+            },
+            "To": [{
+              "Email": "michael@hwoodgroup.com",
+              "Name": "Michael Green",
+            }, {
+              "Email": "lydia@hwoodgroup.com",
+              "Name": "Lydia Saylor",
+            }, {
+              "Email": "tharris@hwoodgroup.com",
+              "Name": "Tierra Harris",
+            }, {
+              "Email": "aguerrero@hwoodgroup.com",
+              "Name": "Ada Guerrero",
+            }, {
+              "Email": "markkostevych1100@gmail.com",
+              "Name": "Mark Kostevych",
+            }],
+            "Subject": `Wage & Tip Report For Week ${weekday}`,
+            "HTMLPart": `Hello sir, click <a href="${downloadURL}">Here</a> to download weekly report. Thank you.`
+          }]
+        }).then((res: any) => {
+          console.log(res.body);
+          return;
+        }).catch((err: any) => {
+          console.log(err.message);
+          return;
+        })
+      });
+    });
+  });
+
 });
