@@ -878,7 +878,8 @@ const locations: any = {
   "Bird Streets Club": {
     r365_code: 1301,
     paycome_code: "OKS71",
-    location: "Bird Streets Club"
+    location: "Bird Streets Club",
+    location_id: "282508"
   },
   // "282509": 
   "Bootsy Bellows": {
@@ -887,7 +888,8 @@ const locations: any = {
     location: "Bootsy Bellows",
     user: "michael-green_bootsy-bellows-2",
     password: "88ZADAE9DNBC",
-    type: "nightclub"
+    type: "nightclub",
+    location_id: "282509"
   },
   // "282510": 
   "Delilah": {
@@ -896,13 +898,15 @@ const locations: any = {
     location: "Delilah",
     user: "michael-green_delilah",
     password: "3WgrMsw3zRyH",
-    type: "restaurant"
+    type: "restaurant",
+    location_id: "282510"
   },
   // "282511": 
   "Harriet's Rooftop": {
     r365_code: 1201,
     paycome_code: "0OA83",
-    location: "Harriet's Rooftop"
+    location: "Harriet's Rooftop",
+    location_id: "282511"
   },
   // "282512": 
   "Petite Taqueria": {
@@ -911,7 +915,8 @@ const locations: any = {
     location: "Petite Taqueria",
     user: "michael-green_petite-taqueria",
     password: "vwLQdp7dNotf",
-    type: "restaurant"
+    type: "restaurant",
+    location_id: "282512"
   },
   // "282514": 
   "Poppy": {
@@ -920,7 +925,8 @@ const locations: any = {
     location: "Poppy",
     user: "michael-green_poppy",
     password: "hTWCQJgVGyWR",
-    type: "nightclub"
+    type: "nightclub",
+    location_id: "282514"
   },
   // "282515": 
   "SHOREbar": {
@@ -929,7 +935,8 @@ const locations: any = {
     location: "SHOREbar",
     user: "michael-green_shorebar",
     password: "zEHXeXRGZEVX",
-    type: "nightclub"
+    type: "nightclub",
+    location_id: "282515"
   },
   // "282516": 
   "Slab BBQ LA": {
@@ -938,7 +945,8 @@ const locations: any = {
     location: "Slab BBQ LA",
     user: "michael-green_slab-la",
     password: "s4dzzx1-seEN",
-    type: "restaurant"
+    type: "restaurant",
+    location_id: "282516"
   },
   // "282517": 
   "The Nice Guy": {
@@ -947,7 +955,8 @@ const locations: any = {
     location: "The Nice Guy",
     user: "michael-green_the-nice-guy",
     password: "ESSshcA1k1bS",
-    type: "restaurant"
+    type: "restaurant",
+    location_id: "282517"
   },
   // "282518": 
   "The Peppermint Club": {
@@ -956,13 +965,15 @@ const locations: any = {
     location: "The Peppermint Club",
     user: "michael-green_peppermint",
     password: "X1gVdkgypoWL",
-    type: "nightclub"
+    type: "nightclub",
+    location_id: "282518"
   },
   // "283224": 
   "Nate 'n Al's": {
     r365_code: 1004,
     paycome_code: "N/A",
-    location: "Nate 'n Al's"
+    location: "Nate 'n Al's",
+    location_id: "283224"
   }
 }
 
@@ -992,7 +1003,7 @@ function doRequest(option: any) {
   });
 }
 
-const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean) => {
+const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean, locationId?: boolean) => {
   let users: any[] = [];
   let csv_data: any = {};
   let airtable_data: any = {};
@@ -1017,11 +1028,11 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
     });
   }
 
-  console.log(`Getting 7shift Report from ${fromDate} to ${toDate}`);
+  console.log(`Getting 7shift Report from ${fromDate} to ${toDate}` + (locationId ? ` For ${locationId}` : ''));
 
   const options = {
     method: 'GET',
-    url: `https://api.7shifts.com/v2/reports/hours_and_wages?punches=true&company_id=${company_id}&from=${fromDate}&to=${toDate}`,
+    url: `https://api.7shifts.com/v2/reports/hours_and_wages?punches=true&company_id=${company_id}&from=${fromDate}&to=${toDate}` + (locationId ? `&location_id=${locationId}` : ''),
     headers: {
       Accept: 'application/json',
       Authorization: `Bearer ${ACCESS_TOKEN}`
@@ -1035,6 +1046,9 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
     try {
       const employees: any = {};
       let acc = locations[loc];
+      if (locationId && acc.location_id != locationId) {
+        continue;
+      }
       if (!acc.user) continue;
 
       let checks: any[] = await getUpsertAPIResponse(
@@ -1148,7 +1162,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             }
           }
           if (check.items) {
-            let service_charges = check.items.filter((item: any) => (item.name === "Service Charge" || item.name === "Automatic Gratuity") && Number(item.price) > 0.1);
+            let service_charges = check.items.filter((item: any) => (item.name === "Service Charge" || item.name === "Automatic Gratuity") && Number(item.price) > 3);
             event.tips += service_charges.reduce((sum: number, item: any) => sum += Number(item.price), 0);
           }
           csv_data[id].total_tips += total_tips;
@@ -1169,7 +1183,9 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
         }
 
         for (let user of users) {
-          for (let role of user.roles) {
+          for (let role of user.roles.filter((rl: any, index: number) =>
+            user.roles.findIndex((rrl: any) => getRoleName(rl.role_label) === getRoleName(rrl.role_label)) === index
+          )) {
             let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : role.role_label;
             role_name = getRoleName(role_name);
             let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
@@ -1212,12 +1228,12 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             let total_hours = 0, regular_hours = 0, ot_hours = 0, dot_hours = 0, compliance_exceptions_pay = 0, total_pay = 0;
             let hourly_wage = user.weeks[0].shifts.find((shift: any) => shift.role_id === role.role_id).wage;
             for (let shift of user['weeks'][0]['shifts'].filter((sh: any) =>
-              sh.location_label === acc.location && sh.role_label === role.role_label && sh.date.split(" ")[0] === trading_day.date)) {
-              total_hours += shift.total.total_hours;
-              regular_hours += shift.total.regular_hours;
-              ot_hours += shift.total.overtime_hours;
-              compliance_exceptions_pay += shift.total.compliance_exceptions_pay;
-              total_pay += shift.total.total_pay;
+              sh.location_label === acc.location && getRoleName(sh.role_label) === getRoleName(role.role_label) && sh.date.split(" ")[0] === trading_day.date)) {
+              total_hours += Math.round(shift.total.total_hours * 100) / 100;
+              regular_hours += Math.round(shift.total.regular_hours * 100) / 100;
+              ot_hours += Math.round(shift.total.overtime_hours * 100) / 100;
+              compliance_exceptions_pay += Math.round(shift.total.compliance_exceptions_pay * 100) / 100;
+              total_pay += Math.round(shift.total.total_pay * 100) / 100;
             }
             let over_hours = regular_hours > 8 ? regular_hours - 8 : 0;
             regular_hours -= over_hours;
@@ -1295,6 +1311,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               }
               csv_data[id].pts += pts;
               airtable_data[airtable_id]['Point'] += pts;
+            } else if (acc.type == 'nightclub') {
             }
           }
         }
@@ -1351,7 +1368,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
     converted_csv_data = [...converted_csv_data, csv_data[key]];
   }
   converted_csv_data = converted_csv_data.filter(data => data.total_tips || data.final_tips);
-  converted_csv_data = converted_csv_data.sort((a, b) => a.first.localeCompare(b.first))
+  converted_csv_data = converted_csv_data.sort((a, b) => a.first_name.localeCompare(b.first_name))
     .sort((a, b) => a.role_name.localeCompare(b.role_name))
     .sort((a, b) => a.location.localeCompare(b.location))
   console.log('Get CSV Date: ', converted_csv_data.length);
@@ -1379,7 +1396,8 @@ const getRoleName = (role_name: string) => {
   switch (role_name) {
     case 'Event Server':
     case 'Events Server':
-    case 'Server': { //Server pool
+    case 'Server':
+    case 'Cashier': { //Server pool
       role_name = 'Server';
       break;
     }
@@ -1448,8 +1466,8 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
     response.status(405).send('Method Not Allowed');
   } else {
     try {
-      const { fromDate, toDate } = req.query;
-      let res: any = await getTipReport(fromDate, toDate, true);
+      const { fromDate, toDate, locationId } = req.query;
+      let res: any = await getTipReport(fromDate, toDate, true, locationId);
       let converted_airtable_data: any[] = res.converted_airtable_data;
 
       while (converted_airtable_data.length > 0) {
@@ -1469,8 +1487,9 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
 })
 
 export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * *').onRun(async (context) => {
-  const fromDate = new Date(new Date().setDate(new Date().getDate() - (new Date().getDay() ? 1 : 7))).toISOString().split('T')[0];
-  const toDate = new Date(new Date().setDate(new Date().getDate() - 1)).toISOString().split('T')[0];
+  const now = new Date();
+  const fromDate = new Date(new Date().setDate(now.getDate() - (now.getDay() === 1 ? 7 : 1))).toISOString().split('T')[0];
+  const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
   let res: any = await getTipReport(fromDate, toDate, true);
   let converted_airtable_data: any[] = res.converted_airtable_data;
 
