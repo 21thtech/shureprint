@@ -1556,9 +1556,26 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
   }
 })
 
-export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 10 * * *').onRun(async (context) => {
+export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 9 * * *').onRun(async (context) => {
   const now = new Date();
-  const fromDate = new Date(new Date().setDate(now.getDate() - (now.getDay() === 1 ? 7 : 1))).toISOString().split('T')[0];
+  const fromDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
+  const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
+  let res: any = await getTipReport(fromDate, toDate, true);
+  let converted_airtable_data: any[] = res.converted_airtable_data;
+
+  while (converted_airtable_data.length > 0) {
+    try {
+      await base('Reports').create(converted_airtable_data.slice(0, 10));
+      converted_airtable_data = converted_airtable_data.slice(10);
+    } catch (e) {
+      console.log(e);
+    }
+  }
+});
+
+export const importWeeklySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
+  const now = new Date();
+  const fromDate = new Date(new Date().setDate(now.getDate() - 7)).toISOString().split('T')[0];
   const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
   let res: any = await getTipReport(fromDate, toDate, true);
   let converted_airtable_data: any[] = res.converted_airtable_data;
