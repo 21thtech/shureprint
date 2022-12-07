@@ -906,6 +906,7 @@ const locations: any = {
     r365_code: 1201,
     paycome_code: "0OA83",
     location: "Harriet's Rooftop",
+    type: "restaurant",
     location_id: "282511"
   },
   // "282512": 
@@ -1119,7 +1120,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             id = '28931_Ciara_Bootsy Bellows_Server';
           } else if (id === '_Raine_Poppy_Server') {
             id = '28931_Ciara_Poppy_Server';
-          } else if (id === 'null_Cashier_Slab BBQ LA_Reporting') {
+          } else if (id === 'null_Cashier_Slab BBQ LA_Server') {
             id = '19874_Alberto_Slab BBQ LA_Server';
           } else if (id === '_Ethan_The Peppermint Club_Bartender') {
             id = '13406_Ethan_The Peppermint Club_Bartender';
@@ -1145,7 +1146,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
           if (!airtable_data[airtable_id]) {
             airtable_data[airtable_id] = {
               "Employee": [],
-              "Week": weekday,
+              "Week Beginning": weekday,
               "Day": trading_day.date,
               "Reg Hours": 0,
               "OT Hours": 0,
@@ -1233,7 +1234,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             if (!airtable_data[airtable_id]) {
               airtable_data[airtable_id] = {
                 "Employee": [],
-                "Week": weekday,
+                "Week Beginning": weekday,
                 "Day": trading_day.date,
                 "Reg Hours": 0,
                 "OT Hours": 0,
@@ -1251,6 +1252,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             }
 
             let total_hours = 0, regular_hours = 0, ot_hours = 0, dot_hours = 0, compliance_exceptions_pay = 0, total_pay = 0;
+            let total_hours_point = 0;
             const shifts = user.weeks.reduce((res: any[], week: any) => res = [...res, ...week.shifts], []);
             let hourly_wage = shifts.find((shift: any) => shift.role_id === role.role_id && role.location_label === shift.location_label).wage;
             for (let shift of shifts.filter((sh: any) =>
@@ -1260,6 +1262,9 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               ot_hours += Math.round(shift.total.overtime_hours * 100) / 100;
               compliance_exceptions_pay += Math.round(shift.total.compliance_exceptions_pay * 100) / 100;
               total_pay += Math.round(shift.total.total_pay * 100) / 100;
+              if (!shift.role_label.includes('Event')) {
+                total_hours_point += Math.round(shift.total.total_hours * 100) / 100;
+              }
             }
             let over_hours = regular_hours > 8 ? regular_hours - 8 : 0;
             regular_hours -= over_hours;
@@ -1277,7 +1282,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             airtable_data[airtable_id]["Exceptions Pay"] = Math.round(compliance_exceptions_pay * 100) / 100;
             airtable_data[airtable_id]["Total Pay"] = Math.round((total_pay + dot_hours * hourly_wage * 0.5) * 100) / 100;
 
-            let daily_pts = Math.round(total_hours / 6 * 100) / 100;
+            let daily_pts = Math.round(total_hours_point / 6 * 100) / 100;
             let pts = 0;
             daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
             if (acc.type == 'restaurant' || acc.type == 'nightclub') {
@@ -1287,7 +1292,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                     event.pts += total_hours > 0 ? 1 : 0;
                     pts = total_hours > 0 ? 1 : 0;
                   } else {
-                    serverPool.count += total_hours > 0 ? 1 : 0;
+                    serverPool.count += total_hours_point > 0 ? 1 : 0;
                     serverPool.pts += daily_pts;
                     pts = daily_pts;
                   }
@@ -1299,7 +1304,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                     event.pts += total_hours > 0 ? 1 : 0;
                     pts = total_hours > 0 ? 1 : 0;
                   } else {
-                    bartenderPool.count += total_hours > 0 ? 1 : 0;
+                    bartenderPool.count += total_hours_point > 0 ? 1 : 0;
                     bartenderPool.pts += daily_pts;
                     pts = daily_pts;
                   }
@@ -1314,7 +1319,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                     busserRunnerPool.pts += daily_pts;
                     pts = daily_pts;
                   } else if (acc.type == 'nightclub') {
-                    busserRunnerPool.count += total_hours > 0 ? 0.4 : 0;
+                    busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
                     busserRunnerPool.pts += 0.4 * daily_pts;
                     pts = 0.4 * daily_pts;
                   }
@@ -1335,7 +1340,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                     event.pts += total_hours > 0 ? 0.5 : 0;
                     pts = total_hours > 0 ? 0.5 : 0;
                   } else {
-                    barbackPool.count += total_hours > 0 ? 0.5 : 0;
+                    barbackPool.count += total_hours_point > 0 ? 0.5 : 0;
                     barbackPool.pts += daily_pts / 2;
                     pts = daily_pts / 2;
                   }
@@ -1352,6 +1357,10 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
           event.tips += serverPool.tips + bartenderPool.tips;
         }
 
+        if (acc.location === 'The Nice Guy' && trading_day.date === '2022-11-28') {
+          serverPool.tips += 209.44;
+          bartenderPool.tips += 1670.49;
+        }
         let temp_tips = 0;
         if (acc.type == 'restaurant') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
@@ -1547,7 +1556,7 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
   }
 })
 
-export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * *').onRun(async (context) => {
+export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 10 * * *').onRun(async (context) => {
   const now = new Date();
   const fromDate = new Date(new Date().setDate(now.getDate() - (now.getDay() === 1 ? 7 : 1))).toISOString().split('T')[0];
   const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
@@ -1574,7 +1583,7 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
   return base('Reports').select({
     maxRecords: 2000,
     view: "Grid view",
-    filterByFormula: "DATESTR(Week) = '" + weekday + "'",
+    filterByFormula: "DATESTR(Week Beginning) = '" + weekday + "'",
     pageSize: 100
   }).eachPage(function page(records: any[], fetchNextPage: any) {
     records.forEach((record) => {
