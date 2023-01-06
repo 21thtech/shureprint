@@ -383,6 +383,7 @@ const useQuoteHTML = (body: any) => {
     <div class="d-flex">
       <div style="width: 50%;">
         <b>Customer:</b><br>
+        ${body.billing_dba ? `${body.billing_dba}(DBA)<br>` : ``}
         ${body.billing_company || body.customer_company || ''}<br>
         ${body.billing_name || body.customer_name || ''}<br>
         ${body.billing_address || ''}<br>
@@ -390,6 +391,7 @@ const useQuoteHTML = (body: any) => {
       </div>
       <div style="width: 50%;">
         <b>Ship To:</b><br>
+        ${body.customer_dba ? `${body.customer_dba}(DBA)<br>` : ``}
         ${body.customer_company || ''}<br>
         ${body.customer_name || ''}<br>
         ${body.customer_address || ''}<br>
@@ -1133,6 +1135,13 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
           tips: 0,
           count: 0
         }
+
+        let sushiPool = {
+          pts: 0,
+          tips: 0,
+          count: 0
+        }
+
         let event = {
           pts: 0,
           tips: 0,
@@ -1207,6 +1216,11 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                 airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
+            }
+            if (check.zone === 'Sushi Bar') {
+              let temp_tips = Math.round(total_tips / 2 * 100) / 100;
+              sushiPool.tips += temp_tips;
+              total_tips -= temp_tips;
             }
           }
           if (check.items) {
@@ -1347,8 +1361,12 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             airtable_data[airtable_id]["Total Pay"] = Math.round((total_pay + dot_hours * hourly_wage * 0.5) * 100) / 100;
 
             let daily_pts = Math.round(total_hours_point / 6 * 100) / 100;
+            if (airtable_data[airtable_id]['Midday'] === 'am') {
+              daily_pts = Math.round(total_hours_point / 4 * 100) / 100;
+            }
             let pts = 0;
-            daily_pts = daily_pts >= 0.5 ? 1 : daily_pts >= 0.25 ? 0.5 : daily_pts > 0 ? 0.25 : 0;
+            daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
+
             if (acc.type == 'restaurant' || acc.type == 'nightclub' || acc.type == 'nightclub1') {
               switch (role_name) {
                 case 'Server': { //Server pool
@@ -1439,12 +1457,18 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                 }
                 case 'Line Cook':
                 case 'Prep Cook':
-                case 'Sushi Cook':
                 case 'Dishwasher':
                 case 'Pastry Prep Cook':
                 case 'Porter': {
                   if (acc.type === 'nightclub1') {
                     bohPool.pts += total_hours > 0 ? 0.5 : 0;
+                    pts = total_hours > 0 ? 0.5 : 0;
+                  }
+                  break;
+                }
+                case 'Sushi Cook': {
+                  if (acc.type === 'nightclub1') {
+                    sushiPool.pts += total_hours > 0 ? 0.5 : 0;
                     pts = total_hours > 0 ? 0.5 : 0;
                   }
                   break;
@@ -1546,11 +1570,13 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub1') {
-          bohPool.tips = 0.05 * (serverPool.service_charge + serverPool.service_charge_pm + bartenderPool.service_charge + bartenderPool.service_charge_pm);
-          serverPool.tips += serverPool.service_charge * 0.95;
-          serverPool.tips_pm += serverPool.service_charge_pm * 0.95;
-          bartenderPool.tips += bartenderPool.service_charge * 0.95;
-          bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.95;
+          let additional_tips = Math.round(0.05 * (serverPool.service_charge + serverPool.service_charge_pm + bartenderPool.service_charge + bartenderPool.service_charge_pm) * 100) / 100;
+          bohPool.tips = additional_tips;
+          sushiPool.tips += additional_tips;
+          serverPool.tips += serverPool.service_charge * 0.9;
+          serverPool.tips_pm += serverPool.service_charge_pm * 0.9;
+          bartenderPool.tips += bartenderPool.service_charge * 0.9;
+          bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.9;
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
           temp_tips_pm = bartenderPool.pts_pm > 0 ? Math.round(0.15 * serverPool.tips_pm * 100) / 100 : 0;
         }
@@ -1565,6 +1591,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
         console.log('busserRunnerPool: ', busserRunnerPool);
         console.log('barbackPool: ', barbackPool);
         console.log('BOHPool: ', bohPool);
+        console.log('sushiPool: ', sushiPool);
         for (let id of Object.keys(airtable_data)) {
           let role_name = airtable_data[id]['Role Name'];
           let location = airtable_data[id]['Location'];
@@ -1649,12 +1676,17 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               }
               case 'Line Cook':
               case 'Prep Cook':
-              case 'Sushi Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
               case 'Porter': {
                 if (acc.type === 'nightclub1') {
                   final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                }
+                break;
+              }
+              case 'Sushi Cook': {
+                if (acc.type === 'nightclub1') {
+                  final_tips = Math.round(sushiPool.tips * point / sushiPool.pts * 100) / 100;
                 }
                 break;
               }
