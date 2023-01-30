@@ -31,7 +31,7 @@ const ACCESS_TOKEN = "30646533633736342d323230332d343430632d393233322d3963623639
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
 
 const Airtable = require('airtable');
-const base = new Airtable({ apiKey: 'keyWlcTPyDlqmqPpC' }).base('appm3mga3DgMuxH6M');
+const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
 
 const useReceiptHtml = (body: any) => {
   let createdTemplate = `
@@ -411,10 +411,11 @@ const useQuoteHTML = (body: any) => {
           <th width="15%" style="text-align: left;">Note</th>
           <th width="5%">Qty</th>
           <th width="10%">Case Qty</th>
-          <th width="10%">Unit Price</th>` + (!body.is_stock_quote ? `
+          <th width="10%">Shureprint Price</th>` + (!body.is_stock_quote ? `
           <th width="10%">Lead Time</th>
           <th width="5%">Set Ups</th>` : '') + (body.showPreviousPrice ? `
-          <th width="10%">Previous Price</th>` : '') + (body.showDiscount ? `
+          <th width="10%">Previous Price</th>
+          <th width="10%">Saving %</th>` : '') + (body.showDiscount ? `
           <th width="10%">Discount</th>` : '') + `
           <th width="10%">Sub Total</th>
         </tr></thead><tbody>`;
@@ -430,7 +431,8 @@ const useQuoteHTML = (body: any) => {
           <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>` + (!body.is_stock_quote ? `
           <td>${item.leadTime || ''}</td>
           <td>${item.setups ? ('$' + item.setups.toFixed(2)) : ''}</td>` : '') + (body.showPreviousPrice ? `
-          <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>` : '') + (body.showDiscount ? `
+          <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
+          <td>${item.previous_price ? (((item.previous_price - item.unit_price) / item.previous_price * 100).toFixed(1) + '%') : ''}</td>` : '') + (body.showDiscount ? `
           <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>` : '') + `
           <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>
         </tr>`;
@@ -486,7 +488,6 @@ const useQuoteHTML = (body: any) => {
         <div class="signature_div">${body.signature_link ? `<img src="${body.signature_link}" class="signature" alt="">` : ''}</div>
       </div>
       <div id="pageFooter">
-        <div style="width: 100%; text-align: center;">1318 N. Spring St Unit B Los Angeles CA 90012 United States</div>
       </div>
     </div>
   </body>`;
@@ -1168,6 +1169,26 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
           tips_pm: 0
         };
 
+
+        let middayObj: any = {};
+        if (acc.type === 'nightclub1') {
+          for (let user of users) {
+            for (let role of user.roles.filter((rl: any, index: number) =>
+              user.roles.findIndex((rrl: any) => getRoleName(rl.role_label) === getRoleName(rrl.role_label)) === index
+            )) {
+              const shifts = user.weeks.reduce((res: any[], week: any) => res = [...res, ...week.shifts], []);
+              let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : role.role_label;
+              role_name = getRoleName(role_name);
+              let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
+              let airtable_id = `${trading_day.date}_${id}`;
+              for (let shift of shifts.filter((sh: any) =>
+                sh.location_label === acc.location && getRoleName(sh.role_label) === getRoleName(role.role_label) && sh.date.split(" ")[0] === trading_day.date)) {
+                middayObj[airtable_id] = Number(shift.date.slice(11, 13)) < 14 ? 'am' : 'pm';
+              }
+            }
+          }
+        }
+
         for (let check of checks.filter(ck => ck.trading_day_id === trading_day.id)) {
           const employee = employees[check.employee_id];
           let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name;
@@ -1179,9 +1200,11 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             id = '28931_Ciara_Bootsy Bellows_Server';
           } else if (id === '_Raine_Poppy_Server') {
             id = '28931_Ciara_Poppy_Server';
+          } else if (id === '_Brooke_Poppy_Server') {
+            id = '14870_Brooke_Poppy_Server';
           } else if (acc.location === 'Slab BBQ LA') {
             id = '19874_Alberto_Slab BBQ LA_Server';
-          } else if (id === '_Ethan_The Peppermint Club_Bartender') {
+          } else if (id === 'null_Ethan_The Peppermint Club_Bartender') {
             id = '13406_Ethan_The Peppermint Club_Bartender';
           } else if (id === '_Jose_Petite Taqueria_Bartender') {
             id = '13068_Jose_Petite Taqueria_Bartender';
@@ -1193,9 +1216,8 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             id = '17642_Marco_Petite Taqueria_Bartender';
           }
 
-          let midday = acc.type === 'nightclub1' ? (Number(check.open_time.slice(11, 13)) < 14 && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm' : null;
           let airtable_id = `${trading_day.date}_${id}`;
-
+          let midday = acc.type === 'nightclub1' ? middayObj[airtable_id] : null;
           let total_tips = 0;
 
           if (!airtable_data[airtable_id]) {
@@ -1221,6 +1243,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               "Service Charge": 0,
             }
           }
+
           airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
           total_tips += Number(check.mandatory_tip_amount);
           if (check.payments) {
@@ -1229,7 +1252,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
-              if (payment.type === 'Credit' || payment.type === 'Gift Card' || (payment.type === 'House Account')) {
+              if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'Owners') {
                 airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1238,6 +1261,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               let temp_tips = Math.round(total_tips / 2 * 100) / 100;
               sushiPool.tips += temp_tips;
               total_tips -= temp_tips;
+              airtable_data[airtable_id]['Total Tips'] += temp_tips;
             }
           }
           if (check.items) {
@@ -1247,7 +1271,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               airtable_data[airtable_id]['Service Charge'] += service_charges;
               switch (role_name) {
                 case 'Server': { //Server pool
-                  if (midday === 'pm') {
+                  if (acc.type === 'nightclub1' && midday === 'pm') {
                     serverPool.service_charge_pm += service_charges;
                   } else {
                     serverPool.service_charge += service_charges;
@@ -1255,7 +1279,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                   break;
                 }
                 case 'Bartender': { //Bartender pool
-                  if (midday === 'pm') {
+                  if (acc.type === 'nightclub1' && midday === 'pm') {
                     bartenderPool.service_charge_pm += service_charges;
                   } else {
                     bartenderPool.service_charge += service_charges;
@@ -1294,6 +1318,16 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               break;
             }
           }
+        }
+
+        // Exceptional Service Charge
+        if (trading_day.date === '22023-01-10' && acc.location === 'The Peppermint Club') {
+          event.tips += 75;
+          airtable_data['2023-01-10_14701_Alexandria_The Peppermint Club_Bartender']['Service Charge'] = 75;
+        }
+
+        if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy')) {
+          event.tips += serverPool.tips + bartenderPool.tips;
         }
 
         for (let user of users) {
@@ -1375,6 +1409,11 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             if (airtable_data[airtable_id]['Midday'] === 'am') {
               daily_pts = Math.round(total_hours_point / 4 * 100) / 100;
             }
+
+            if (airtable_id === '2023-01-20_11263_Daniel_Poppy_TSA') {
+              continue;
+            }
+
             let pts = 0;
             daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
 
@@ -1490,10 +1529,6 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
           }
         }
 
-        if (event.tips > 0) {
-          event.tips += serverPool.tips + bartenderPool.tips;
-        }
-
         let temp_tips = 0, temp_tips_pm = 0;
         if (acc.type == 'restaurant') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
@@ -1524,6 +1559,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
         console.log('barbackPool: ', barbackPool);
         console.log('BOHPool: ', bohPool);
         console.log('sushiPool: ', sushiPool);
+        console.log('Event Tip: ', event);
         for (let id of Object.keys(airtable_data)) {
           let role_name = airtable_data[id]['Role Name'];
           let location = airtable_data[id]['Location'];
