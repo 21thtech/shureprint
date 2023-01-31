@@ -1042,16 +1042,58 @@ const getEmployeeData = () => {
   })
 }
 
-const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean, locationId?: boolean) => {
+const getOverPointData = () => {
+  return new Promise(resolve => {
+    let overpoint_data: any = {};
+    base('Reports').select({
+      fields: ["Identity", "Override Point", "Reason"],
+      maxRecords: 1000,
+      view: "Over points"
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      records.forEach((record) => {
+        overpoint_data[record.get('Identity')] = {
+          over_point: record.get('Override Point'),
+          reason: record.get('Reason')
+        };
+      });
+      fetchNextPage();
+
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve(null); }
+      console.log('Get Airtable Over Point Data');
+      resolve(overpoint_data);
+    });
+  })
+}
+
+const getTipReport = async (fromDate: string, toDate: string, locationId?: string) => {
   let users: any[] = [];
   let airtable_data: any = {};
   let airtable_employees: any = {};
+  let overpoint_data: any = {};
 
   console.log('getTipReport Started.')
   // Get Airtable Employees Data;
-  if (airtable) {
-    airtable_employees = await getEmployeeData();
-  }
+  airtable_employees = await getEmployeeData();
+  overpoint_data = await getOverPointData();
+
+  // Delete Old Records;
+  const removalWebhook = {
+    method: 'POST',
+    url: `https://hooks.airtable.com/workflows/v1/genericWebhook/appm3mga3DgMuxH6M/wfly8cF1lc7sVJwwd/wtrK01xUSMAfIQnXu`,
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+    },
+    form: {
+      fromDate: fromDate,
+      toDate: toDate,
+      locationId: locationId
+    }
+  };
+
+  let webhook_res: any = await doRequest(removalWebhook);
+  console.log(`Removal webhook results: `, webhook_res);
 
   console.log(`Getting 7shift Report from ${fromDate} to ${toDate}` + (locationId ? ` For ${locationId}` : ''));
 
@@ -1239,6 +1281,8 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               "AutoGrat": 0,
               "Total Tips": 0,
               "Point": 0,
+              "Reason": null,
+              "Override Point": null,
               "Final Tips": 0,
               "Service Charge": 0,
             }
@@ -1372,6 +1416,12 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
             let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
             let airtable_id = `${trading_day.date}_${id}`;
 
+            if (airtable_id === '2023-01-25_200018_Andy_SHOREbar_Barback') {
+              continue;
+            } else if (airtable_id === '2023-01-20_11263_Daniel_Poppy_TSA') {
+              continue;
+            }
+
             if (!airtable_data[airtable_id]) {
               airtable_data[airtable_id] = {
                 "Employee": [],
@@ -1391,6 +1441,8 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                 "AutoGrat": 0,
                 "Total Tips": 0,
                 "Point": 0,
+                "Reason": null,
+                "Override Point": null,
                 "Final Tips": 0,
                 "Service Charge": 0,
               }
@@ -1410,98 +1462,114 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
               daily_pts = Math.round(total_hours_point / 4 * 100) / 100;
             }
 
-            if (airtable_id === '2023-01-20_11263_Daniel_Poppy_TSA') {
-              continue;
-            }
-
             let pts = 0;
+            let over_point;
+            if (overpoint_data[airtable_id]) {
+              over_point = overpoint_data[airtable_id]['over_point'];
+            }
             daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
 
             if (acc.type == 'restaurant' || acc.type == 'nightclub' || acc.type == 'nightclub1') {
               switch (role_name) {
                 case 'Server': { //Server pool
                   if (event.tips > 0) {
-                    event.pts += total_hours > 0 ? 1 : 0;
                     pts = total_hours > 0 ? 1 : 0;
+                    if (over_point === 0) break;
+                    event.pts += total_hours > 0 ? 1 : 0;
                   } else if (acc.type === 'nightclub1' && midday === 'pm') {
-                    serverPool.pts_pm += daily_pts;
                     pts = daily_pts;
+                    if (over_point === 0) break;
+                    serverPool.pts_pm += over_point || daily_pts;
                   } else {
-                    serverPool.count += total_hours_point > 0 ? 1 : 0;
-                    serverPool.pts += daily_pts;
                     pts = daily_pts;
+                    if (over_point === 0) break;
+                    serverPool.count += total_hours_point > 0 ? 1 : 0;
+                    serverPool.pts += over_point || daily_pts;
                   }
                   break;
                 }
                 case 'Bartender':
                 case 'Service Bar': { //Bartender pool
                   if (event.tips > 0) {
-                    event.pts += total_hours > 0 ? 1 : 0;
                     pts = total_hours > 0 ? 1 : 0;
+                    if (over_point === 0) break;
+                    event.pts += total_hours > 0 ? 1 : 0;
                   } else if (acc.type === 'nightclub1' && midday === 'pm') {
-                    bartenderPool.pts_pm += daily_pts;
                     pts = daily_pts;
+                    if (over_point === 0) break;
+                    bartenderPool.pts_pm += over_point || daily_pts;
                   } else {
-                    bartenderPool.count += total_hours_point > 0 ? 1 : 0;
-                    bartenderPool.pts += daily_pts;
                     pts = daily_pts;
+                    if (over_point === 0) break;
+                    bartenderPool.count += total_hours_point > 0 ? 1 : 0;
+                    bartenderPool.pts += over_point || daily_pts;
                   }
                   break;
                 }
                 case 'Support':
                 case 'TSA': {
                   if (event.tips > 0) {
-                    event.pts += total_hours > 0 ? 0.5 : 0;
                     pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    event.pts += total_hours > 0 ? 0.5 : 0;
                   } else if (acc.type == 'restaurant') {
-                    busserRunnerPool.pts += daily_pts;
                     pts = daily_pts;
+                    if (over_point === 0) break;
+                    busserRunnerPool.pts += over_point || daily_pts;
                   } else if (acc.type == 'nightclub') {
+                    pts = 0.4 * daily_pts;
+                    if (over_point === 0) break;
                     busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
-                    busserRunnerPool.pts += 0.4 * daily_pts;
-                    pts = 0.4 * daily_pts;
+                    busserRunnerPool.pts += over_point || 0.4 * daily_pts;
                   } else if (acc.type === 'nightclub1') {
-                    if (midday === 'pm') {
-                      serverPool.pts_pm += 0.4 * daily_pts;
-                    } else {
-                      serverPool.pts += 0.4 * daily_pts;
-                    }
                     pts = 0.4 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      serverPool.pts_pm += over_point || 0.4 * daily_pts;
+                    } else {
+                      serverPool.pts += over_point || 0.4 * daily_pts;
+                    }
                   }
                   break;
                 }
                 case 'Host': {
                   if (event.tips > 0) {
-                    event.pts += total_hours > 0 ? 0.25 : 0;
                     pts = total_hours > 0 ? 0.25 : 0;
+                    if (over_point === 0) break;
+                    event.pts += total_hours > 0 ? 0.25 : 0;
                   } else if (acc.type == 'restaurant') {
-                    receptionHostPool.pts += daily_pts;
                     pts = daily_pts;
+                    if (over_point === 0) break;
+                    receptionHostPool.pts += over_point || daily_pts;
                   } else if (acc.type === 'nightclub1') {
-                    if (midday === 'pm') {
-                      serverPool.pts_pm += 0.1 * daily_pts;
-                    } else {
-                      serverPool.pts += 0.1 * daily_pts;
-                    }
                     pts = 0.1 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      serverPool.pts_pm += over_point || 0.1 * daily_pts;
+                    } else {
+                      serverPool.pts += over_point || 0.1 * daily_pts;
+                    }
                   }
                   break;
                 }
                 case 'Barback': {
                   if (event.tips > 0) {
-                    event.pts += total_hours > 0 ? 0.5 : 0;
                     pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    event.pts += total_hours > 0 ? 0.5 : 0;
                   } else if (acc.type === 'nightclub1') {
-                    if (midday === 'pm') {
-                      bartenderPool.pts_pm += 0.5 * daily_pts;
-                    } else {
-                      bartenderPool.pts += 0.5 * daily_pts;
-                    }
                     pts = 0.5 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      bartenderPool.pts_pm += over_point || 0.5 * daily_pts;
+                    } else {
+                      bartenderPool.pts += over_point || 0.5 * daily_pts;
+                    }
                   } else {
-                    barbackPool.count += total_hours_point > 0 ? 0.5 : 0;
-                    barbackPool.pts += daily_pts / 2;
                     pts = daily_pts / 2;
+                    if (over_point === 0) break;
+                    barbackPool.count += total_hours_point > 0 ? 0.5 : 0;
+                    barbackPool.pts += over_point || daily_pts / 2;
                   }
                   break;
                 }
@@ -1511,20 +1579,30 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
                 case 'Pastry Prep Cook':
                 case 'Porter': {
                   if (acc.type === 'nightclub1') {
-                    bohPool.pts += total_hours > 0 ? 0.5 : 0;
                     pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    bohPool.pts += total_hours > 0 ? 0.5 : 0;
                   }
                   break;
                 }
                 case 'Sushi Cook': {
                   if (acc.type === 'nightclub1') {
-                    sushiPool.pts += total_hours > 0 ? 0.5 : 0;
                     pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    sushiPool.pts += total_hours > 0 ? 0.5 : 0;
                   }
                   break;
                 }
               }
-              airtable_data[airtable_id]['Point'] += pts;
+
+              if (overpoint_data[airtable_id] && overpoint_data[airtable_id]['over_point'] !== pts) {
+                airtable_data[airtable_id]['Point'] = overpoint_data[airtable_id]['over_point'];
+                airtable_data[airtable_id]['Override Point'] = overpoint_data[airtable_id]['over_point'];
+                airtable_data[airtable_id]['Reason'] = overpoint_data[airtable_id]['reason'];
+              } else {
+                airtable_data[airtable_id]['Point'] = pts;
+              }
+
             }
           }
         }
@@ -1673,7 +1751,7 @@ const getTipReport = async (fromDate: string, toDate: string, airtable?: boolean
   let converted_airtable_data: any[] = [];
   for (let key of Object.keys(airtable_data)) {
     let employee_id = key.slice(11);
-    if (airtable_employees[employee_id] && (airtable_data[key]['Total Pay'] || airtable_data[key]['Total Tips'] || airtable_data[key]['Final Tips'])) {
+    if (airtable_employees[employee_id] && (airtable_data[key]['Total Pay'] || airtable_data[key]['Service Charge'] || airtable_data[key]['Total Tips'] || airtable_data[key]['Final Tips'])) {
       converted_airtable_data = [...converted_airtable_data, {
         fields: {
           ...airtable_data[key],
@@ -1763,7 +1841,7 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
   } else {
     try {
       const { fromDate, toDate, locationId } = req.query;
-      let res: any = await getTipReport(fromDate, toDate, true, locationId);
+      let res: any = await getTipReport(fromDate, toDate, locationId);
       let converted_airtable_data: any[] = res.converted_airtable_data;
 
       while (converted_airtable_data.length > 0) {
@@ -1782,7 +1860,7 @@ export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).p
   const now = new Date();
   const fromDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
   const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
-  let res: any = await getTipReport(fromDate, toDate, true);
+  let res: any = await getTipReport(fromDate, toDate);
   let converted_airtable_data: any[] = res.converted_airtable_data;
 
   try {
@@ -1799,7 +1877,7 @@ export const importWeeklySalesReportToAirtable = functions.runWith(runtimeOpts).
   const now = new Date();
   const fromDate = new Date(new Date().setDate(now.getDate() - 7)).toISOString().split('T')[0];
   const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
-  let res: any = await getTipReport(fromDate, toDate, true);
+  let res: any = await getTipReport(fromDate, toDate);
   let converted_airtable_data: any[] = res.converted_airtable_data;
 
   try {
@@ -1929,7 +2007,7 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
               "Email": "aguerrero@hwoodgroup.com",
               "Name": "Ada Guerrero",
             }, {
-              "Email": "markkostevych1100@gmail.com",
+              "Email": "markkostevych111@gmail.com",
               "Name": "Mark Kostevych",
             }],
             "Subject": `Wage & Tip Report For Week ${weekday}`,
