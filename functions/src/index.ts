@@ -29,6 +29,7 @@ const logoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAw4AAABNCAYAAA
 const company_id = 223218;
 const ACCESS_TOKEN = "30646533633736342d323230332d343430632d393233322d396362363937613565643731";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
+const SOS_TOKEN = "qBHLLcyqam0hziNPA58cjeLQknGaLxnoUeH-X9ve23atvMEXeo78knorfiWU9ak6UzlSmrxMrS0f4lsC5GBZLu67Up0oDwDXurPrEEuisMCWy4C5lt44fxiuzIc5QhH288oEOCCU98OrsBzF5HF2SwFHEWpwKFWMxIaZzqXd_FamKdx--n4P7oZ-AQ1mF4GuNAUt4JHTcAtqutHdvt5CGR1eL0dSUXpjIU1fCq3F8IntQ5YtKrWvn4QYSH_wBwUncnPxCMkMttQC5GnZ2p9EVJPQa50yZfGPeTfUb9_Nx7U8lQkT";
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
@@ -1015,6 +1016,7 @@ function doRequest(option: any) {
       if (!error && res.statusCode == 200) {
         resolve(JSON.parse(body.toString()));
       } else {
+        console.log(error);
         reject(error);
       }
     });
@@ -1418,11 +1420,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy')) {
           console.log(`Event Tips: ${event.tips}`);
-          event.tips += serverPool.tips + bartenderPool.tips;
+          event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
         }
         if (event.tips_pm > 0) {
           console.log(`Event Tips PM: ${event.tips_pm}`);
-          event.tips_pm += serverPool.tips_pm + bartenderPool.tips_pm;
+          event.tips_pm += serverPool.tips_pm + serverPool.service_charge_pm + bartenderPool.tips_pm + bartenderPool.service_charge_pm;
         }
 
         for (let user of users) {
@@ -1530,11 +1532,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts += total_hours > 0 ? 1 : 0;
+                    event.pts += over_point || total_hours > 0 ? 1 : 0;
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += total_hours > 0 ? 1 : 0;
+                    event.pts_pm += over_point || total_hours > 0 ? 1 : 0;
                   } else if (acc.type === 'nightclub1' && midday === 'pm') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1552,11 +1554,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts += total_hours > 0 ? 1 : 0;
+                    event.pts += over_point || total_hours > 0 ? 1 : 0;
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += total_hours > 0 ? 1 : 0;
+                    event.pts_pm += over_point || total_hours > 0 ? 1 : 0;
                   } else if (acc.type === 'nightclub1' && midday === 'pm') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1574,11 +1576,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts += total_hours > 0 ? 0.5 : 0;
+                    event.pts += over_point || total_hours > 0 ? 0.5 : 0;
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += total_hours > 0 ? 0.5 : 0;
+                    event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
                   } else if (acc.type == 'restaurant') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1599,15 +1601,16 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   }
                   break;
                 }
-                case 'Host': {
+                case 'Host':
+                case 'Anchor Host': {
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.25 : 0;
                     if (over_point === 0) break;
-                    event.pts += total_hours > 0 ? 0.25 : 0;
+                    event.pts += over_point || total_hours > 0 ? 0.25 : 0;
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.25 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += total_hours > 0 ? 0.25 : 0;
+                    event.pts_pm += over_point || total_hours > 0 ? 0.25 : 0;
                   } else if (acc.type == 'restaurant') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1627,11 +1630,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts += total_hours > 0 ? 0.5 : 0;
+                    event.pts += over_point || total_hours > 0 ? 0.5 : 0;
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += total_hours > 0 ? 0.5 : 0;
+                    event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
                   } else if (acc.type === 'nightclub1') {
                     pts = 0.5 * daily_pts;
                     if (over_point === 0) break;
@@ -1656,7 +1659,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (acc.type === 'nightclub1') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    bohPool.pts += total_hours > 0 ? 0.5 : 0;
+                    if (event.tips > 0 && midday !== 'pm') {
+                      event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    } else if (event.tips_pm > 0 && midday === 'pm') {
+                      event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
+                    } else {
+                      bohPool.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    }
                   }
                   break;
                 }
@@ -1664,7 +1673,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (acc.type === 'nightclub1') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    sushiPool.pts += total_hours > 0 ? 0.5 : 0;
+                    if (event.tips > 0 && midday !== 'pm') {
+                      event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    } else if (event.tips_pm > 0 && midday === 'pm') {
+                      event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
+                    } else {
+                      sushiPool.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    }
                   }
                   break;
                 }
@@ -1702,9 +1717,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             bartenderPool.service_charge_pm += tmp_tips;
           }
 
-          let additional_tips = Math.round(0.05 * (serverPool.service_charge + serverPool.service_charge_pm + bartenderPool.service_charge + bartenderPool.service_charge_pm) * 100) / 100;
+          let additional_tips = Math.round(0.05 * ((event.tips > 0 ? 0 : serverPool.service_charge + bartenderPool.service_charge) + (event.tips_pm > 0 ? 0 : serverPool.service_charge_pm + bartenderPool.service_charge_pm)) * 100) / 100;
           bohPool.tips = additional_tips;
-          if (trading_day.date !== '2023-01-24' || acc.location !== 'Bird Streets Club') {
+          if (trading_day.date !== '2023-01-24' && sushiPool.pts !== 0) {
             sushiPool.tips += additional_tips;
             serverPool.tips += serverPool.service_charge * 0.9;
             serverPool.tips_pm += serverPool.service_charge_pm * 0.9;
@@ -1804,7 +1819,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 break;
               }
-              case 'Host': {
+              case 'Host':
+              case 'Anchor Host': {
                 if (acc.type === 'restaurant') {
                   final_tips = Math.round(receptionHostPool.tips * point / receptionHostPool.pts * 100) / 100;
                 } else if (acc.type === 'nightclub1') {
@@ -1905,7 +1921,8 @@ const getRoleName = (role_name: string) => {
     case 'Host':
     case 'Events Reception':
     case 'Event Reception':
-    case 'Reception': {
+    case 'Reception':
+    case 'Receptionist': {
       role_name = 'Host';
       break;
     }
@@ -2158,3 +2175,60 @@ export const listenFromWebhook = functions.runWith(runtimeOpts).https.onRequest(
 
   }
 })
+
+export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('0 * * * *').onRun(async (context) => {
+
+  let salesOrderItems: any[] = [];
+  let count = 200, start = 1;
+  while (count == 200) {
+    const options = {
+      method: 'GET',
+      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3600000).toISOString()}`,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${SOS_TOKEN}`
+      }
+    };
+
+    let res: any = await doRequest(options);
+    console.log(`Got SOS Sales Orders ${res.count}`);
+    count = res.count;
+    start += 200;
+    for (let order of res.data) {
+      for (let orderItem of order.lines) {
+        salesOrderItems = [...salesOrderItems, {
+          id: orderItem.id,
+          order_id: order.id,
+          product: orderItem.item.id,
+          date: order.date,
+          quantity: orderItem.quantity,
+          shipped: orderItem.shipped,
+          invoiced: orderItem.invoiced,
+          unitprice: orderItem.unitprice,
+          amount: orderItem.amount
+        }]
+      }
+    }
+  }
+  console.log(`Total Order Items: ${salesOrderItems.length}`);
+  // Create SOS Items on Airtable
+  while (salesOrderItems.length > 0) {
+    const sosItemCreateWebHook = {
+      method: 'POST',
+      url: `https://hooks.airtable.com/workflows/v1/genericWebhook/appKWq1KHqzZeJ3uF/wflsZcYNAzawiZjfu/wtrAycEozgGhP9n1k`,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      form: {
+        data: JSON.stringify(salesOrderItems.slice(0, 200))
+      }
+    };
+    let webhook_res: any = await doRequest(sosItemCreateWebHook);
+    salesOrderItems = salesOrderItems.slice(200);
+    console.log(`Create SOS Sales Order Item webhook results: `, webhook_res);
+    console.log(`Remaining Items: `, salesOrderItems.length);
+
+  }
+
+});
