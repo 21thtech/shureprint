@@ -33,6 +33,7 @@ const SOS_TOKEN = "qBHLLcyqam0hziNPA58cjeLQknGaLxnoUeH-X9ve23atvMEXeo78knorfiWU9
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
+const db = require('./db');
 
 const useReceiptHtml = (body: any) => {
   let createdTemplate = `
@@ -1027,12 +1028,12 @@ const getEmployeeData = () => {
   return new Promise(resolve => {
     let airtable_employees: any = {};
     base('Employees').select({
-      fields: ["Identity"],
+      fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Reg Rate"],
       maxRecords: 1000,
-      view: "Grid view"
+      view: "Primary"
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
-        airtable_employees[record.get('Identity')] = record.getId();
+        airtable_employees[record.get('Identity')] = record;
       });
       fetchNextPage();
 
@@ -1067,22 +1068,22 @@ const getVenueData = () => {
 
 const getTransferData = (fromDate: string, toDate: string) => {
   return new Promise(resolve => {
-    let venue_data: any = {};
+    let transfer_data: any = {};
     base('BSC Transfer Table').select({
       fields: ["Identity", "Transfer Amount"],
       maxRecords: 1000,
       view: "Grid view",
-      filterByFormula: `And({Date} > ${fromDate}, {Date} <= ${toDate})`
+      filterByFormula: `"And(DATESTR({Date}) >= ${fromDate}, DATESTR({Date}) <= ${toDate})"`
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
-        venue_data[record.get('Identity')] = record.get("Transfer Amount");
+        transfer_data[record.get('Identity')] = record.get("Transfer Amount");
       });
       fetchNextPage();
 
     }, function done(err: any) {
       if (err) { console.error(err); resolve(null); }
-      console.log('Get BSC Transfer Data');
-      resolve(venue_data);
+      console.log(`Get BSC Transfer Data from ${fromDate} to ${toDate}`);
+      resolve(transfer_data);
     });
   })
 }
@@ -1267,6 +1268,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name;
           role_name = getRoleName(role_name);
           let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}_${role_name}`;
+          if (!employee['employee_identifier']) {
+            console.log("XXXXXXXXXXXXXXXXXXX Need to replace Employee ID: ", id);
+          }
 
           // exceptional cases
           if (id === '18931_Raine_Bootsy Bellows_Server') {
@@ -1283,18 +1287,27 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '13068_Jose_Petite Taqueria_Bartender';
           } else if (id === '_Freddie_Petite Taqueria_Bartender') {
             id = '12857_Freddie_Petite Taqueria_Bartender';
-          } else if (id === 'null_Events_The Nice Guy_Manager') {
-            id = '2057_Bridgette_The Nice Guy_Server';
-            role_name = 'Server';
-          } else if (id === '_Matthew_Petite Taqueria_Admin') {
+          } else if (role_name === 'Admin' && acc.location === 'Petite Taqueria') {
             id = '17642_Marco_Petite Taqueria_Bartender';
             role_name = 'Bartender';
-          } else if (id === '_Charity_Bird Streets Club_Manager') {
+          } else if (role_name === 'Manager' && acc.location === 'Bird Streets Club') {
             id = '11246_Michael_Bird Streets Club_Server';
             role_name = 'Server';
-          } else if (id === '8816_Kelly_The Nice Guy_Manager') {
+          } else if (role_name === 'Manager' && acc.location === 'The Nice Guy') {
             id = '10196_Jason_The Nice Guy_Server';
             role_name = 'Server';
+          } else if (role_name === 'Manager' && acc.location === 'Delilah') {
+            id = '11967_Demi_Delilah_Server';
+            role_name = 'Server';
+          } else if (role_name === 'Manager' && acc.location === 'The Peppermint Club') {
+            id = '12495_Denvre_The Peppermint Club_Server';
+            role_name = 'Server';
+          } else if (id === '_Nate_Delilah_Bartender') {
+            id = '14211_Nate_Delilah_Bartender';
+          } else if (id === '_Jordan_Delilah_Bartender') {
+            id = '14581_Jordan_Delilah_Bartender';
+          } else if (id === '_Jordan_The Peppermint Club_Bartender') {
+            id = '14581_Jordan_The Peppermint Club_Bartender';
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
@@ -1418,7 +1431,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
         }
 
-        if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy')) {
+        if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
+          (trading_day.date === '2023-02-23' && acc.location === 'The Peppermint Club') ||
+          (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
         }
@@ -1574,9 +1589,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Support':
                 case 'TSA': {
                   if (event.tips > 0 && midday !== 'pm') {
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
+                      pts = total_hours > 0 ? 1 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || total_hours > 0 ? 1 : 0;
+                    } else {
+                      pts = total_hours > 0 ? 0.5 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    }
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
@@ -1698,6 +1719,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
         }
 
+        if (acc.location === 'Delilah' && trading_day.date === '2023-02-25') {
+          serverPool.tips -= 1000;
+          bartenderPool.tips += 1000;
+        }
+
         let temp_tips = 0, temp_tips_pm = 0;
         if (acc.type == 'restaurant') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
@@ -1708,11 +1734,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         } else if (acc.type === 'nightclub1') {
           if (transfer_data[trading_day.date + '_am']) {
             let tmp_tips = Math.round(transfer_data[trading_day.date + '_am'] * 17) / 100;
+            console.log('Transfer Amount: ' + trading_day.date + '_am', tmp_tips);
             serverPool.service_charge -= tmp_tips;
             bartenderPool.service_charge += tmp_tips;
           }
           if (transfer_data[trading_day.date + '_pm']) {
             let tmp_tips = Math.round(transfer_data[trading_day.date + '_pm'] * 17) / 100;
+            console.log('Transfer Amount: ' + trading_day.date + '_pm', tmp_tips);
             serverPool.service_charge_pm -= tmp_tips;
             bartenderPool.service_charge_pm += tmp_tips;
           }
@@ -1855,8 +1883,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
       }
       console.log("Getting Tips: ", acc.location);
     } catch (err) {
-      console.log(err);
-      return;
+      console.log("Tip Distributing Error: ", err);
+      return "Tip Distributing Error";
     }
   }
 
@@ -1868,7 +1896,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         fields: {
           ...airtable_data[key],
           "Employee": [
-            airtable_employees[employee_id]
+            airtable_employees[employee_id].getId()
           ]
         }
       }];
@@ -1893,7 +1921,18 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
   let webhook_res: any = await doRequest(removalWebhook);
   console.log(`Removal webhook results: `, webhook_res);
-  return { converted_airtable_data };
+
+  try {
+    while (converted_airtable_data.length > 0) {
+      await base('Reports').create(converted_airtable_data.slice(0, 10));
+      converted_airtable_data = converted_airtable_data.slice(10);
+    }
+  } catch (err) {
+    console.log("Import Data Into Airtable: ", err);
+    return "Error To Import Data Into Airtable";
+  }
+
+  return "Success";
 }
 
 
@@ -1973,13 +2012,7 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
     try {
       const { fromDate, toDate, locationId } = req.query;
       let res: any = await getTipReport(fromDate, toDate, locationId);
-      let converted_airtable_data: any[] = res.converted_airtable_data;
-
-      while (converted_airtable_data.length > 0) {
-        await base('Reports').create(converted_airtable_data.slice(0, 10));
-        converted_airtable_data = converted_airtable_data.slice(10);
-      }
-      response.status(200).send('Updated Airtable');
+      response.status(200).send(res);
     } catch (e) {
       response.status(500).send(e);
     }
@@ -1992,35 +2025,14 @@ export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).p
   const yesterday = new Date(Date.now() - 24 * 3600000);
   const fromDate = getMonday(yesterday, 1);
   const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
-  let res: any = await getTipReport(fromDate, toDate);
-  let converted_airtable_data: any[] = res.converted_airtable_data;
-
-  try {
-    while (converted_airtable_data.length > 0) {
-      await base('Reports').create(converted_airtable_data.slice(0, 10));
-      converted_airtable_data = converted_airtable_data.slice(10);
-    }
-  } catch (e) {
-    console.log(e);
-  }
+  await getTipReport(fromDate, toDate);
 });
 
 export const importWeeklySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async (context) => {
   const now = new Date();
   const fromDate = new Date(new Date().setDate(now.getDate() - 7)).toISOString().split('T')[0];
   const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
-  let res: any = await getTipReport(fromDate, toDate);
-  let converted_airtable_data: any[] = res.converted_airtable_data;
-
-  try {
-    while (converted_airtable_data.length > 0) {
-      await base('Reports').create(converted_airtable_data.slice(0, 10));
-      converted_airtable_data = converted_airtable_data.slice(10);
-
-    }
-  } catch (e) {
-    console.log(e);
-  }
+  await getTipReport(fromDate, toDate);
 });
 
 export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async (context) => {
@@ -2232,3 +2244,238 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
   }
 
 });
+
+export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule('every 10 minutes').onRun(async (context) => {
+  let last_updated = await getPGLastUpdated();
+  if (!last_updated) {
+    last_updated = '2019-12-31';
+  } else if (new Date(last_updated) > new Date()) {
+    return null;
+  }
+  let fromDate = new Date(new Date(last_updated).getTime() + 24 * 3600000).toISOString().split('T')[0];
+  let toDate = new Date(new Date(last_updated).getTime() + 10 * 24 * 3600000).toISOString().split('T')[0];
+  try {
+    console.log(`Data Import From Upserve To PG Server: From ${fromDate} To ${toDate}`);
+    // GET Employees From PGTable
+    const pg_employees = await db.query("SELECT airtable_id from employees;", []);
+    const pg_employees_ids: string[] = pg_employees.rows.map((emp: any) => emp.airtable_id);
+    console.log('Got Employees From PGTable : ' + pg_employees_ids.length);
+
+    // GET Items From PGTable
+    const pg_items = await db.query("SELECT item_id from items;", []);
+    const pg_items_ids: string[] = pg_items.rows.map((item: any) => item.item_id);
+    console.log('Got Items From PGTable : ' + pg_items_ids.length);
+
+    // GET Checks From PGTable
+    const pg_checks = await db.query("SELECT id from checks;", []);
+    const pg_checks_ids: string[] = pg_checks.rows.map((item: any) => item.id);
+    console.log('Got Checks From PGTable : ' + pg_checks_ids.length);
+
+    // GET Items From PGTable
+    const pg_payments = await db.query("SELECT id from payments;", []);
+    const pg_payments_ids: string[] = pg_payments.rows.map((item: any) => item.id);
+    console.log('Got Payments From PGTable : ' + pg_payments_ids.length);
+
+    // GET Check Items From PGTable
+    const pg_check_items = await db.query("SELECT id from check_items;", []);
+    const pg_check_items_ids: string[] = pg_check_items.rows.map((item: any) => item.id);
+    console.log('Got Check Items From PGTable : ' + pg_check_items_ids.length);
+
+    // GET Reports From PGTable
+    // const pg_reports = await db.query("SELECT airtable_id from reports;", []);
+    // const pg_reports_ids = pg_reports.rows.map((item: any) => item.airtable_id);
+    // console.log('Got Reports From PGTable : ' + pg_reports.length);
+
+    // GET Employees From Airtable
+    let airtable_employees: any = await getEmployeeData();
+    console.log('Got Employees From Airtable');
+
+    let new_employees: any[] = [];
+    for (let id of Object.keys(airtable_employees)) {
+      let non_exist = pg_employees_ids.indexOf(id) < 0;
+      if (non_exist) {
+        new_employees = [...new_employees, airtable_employees[id]];
+      }
+    }
+
+    if (new_employees.length) {
+      let sql_str = new_employees.reduce((sql, emp, index) => {
+        return sql + `($$${emp.get("Identity")}$$,$$${emp.get("Employee ID")}$$,${emp.get("POS ID")},$$${emp.get("First")}$$,$$${emp.get("Last")}$$,`
+          + `$$${emp.get("Email")}$$,$$${emp.get("Mobile")}$$,$$${emp.get("Location")}$$,$$${emp.get("Paycom Code")}$$,${emp.get("R365 Code")},`
+          + `$$${emp.get("Role")}$$,${emp.get("Reg Rate")})` + (index < (new_employees.length - 1) ? ', ' : ';');
+      }, 'INSERT INTO employees (airtable_id, employee_id, pos_id, first, last, '
+      + 'email, mobile, location, paycom_code, r365_code, '
+      + 'role, reg_rate) VALUES ');
+      await db.query(sql_str, []);
+    }
+    console.log(`Add ${new_employees.length} Employees To PostgreSQL`);
+
+    let new_items: any[] = [];
+    let new_checks: any[] = [];
+    let new_payments: any[] = [];
+    let new_check_items: any[] = [];
+    // let new_reports: any[] = [];
+    for (let loc of Object.keys(locations)) {
+
+      let acc = locations[loc];
+      if (!acc.user) continue;
+      // Import Items
+      let items: any[] = await getUpsertAPIResponse(
+        `https://api.breadcrumb.com/ws/v2/items.json?`,
+        acc.user,
+        acc.password,
+        0
+      );
+
+      console.log('Got Items For ', loc);
+      new_items = [...new_items, ...items.filter(item => pg_items_ids.indexOf(item.item_id) < 0).map((item: any) => ({ ...item, location: loc }))];
+
+      // Import Checks
+      let checks: any[] = await getUpsertAPIResponse(
+        `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate}`,
+        acc.user,
+        acc.password,
+        0
+      );
+      console.log('Got Checks For ', loc);
+
+      let employee_data: any[] = await getUpsertAPIResponse(
+        `https://api.breadcrumb.com/ws/v2/employees.json?`,
+        acc.user,
+        acc.password,
+        0
+      );
+      console.log("Got Employee: ", loc, employee_data.length);
+
+      let trading_days: any[] = await getUpsertAPIResponse(
+        `https://api.breadcrumb.com/ws/v2/trading_days.json?start=${fromDate}T12:00:00-08:00&end=${toDate}T12:00:00-08:00`,
+        acc.user,
+        acc.password,
+        0
+      );
+      console.log("Got Trading_Days: ", loc, trading_days.length);
+
+      for (let check of checks) {
+        let trading_day = trading_days.find(d => d.id === check.trading_day_id);
+        let employee = employee_data.find(e => e.id === check.employee_id);
+        let role_name = loc === 'Slab BBQ LA' ? 'Server' : check.employee_role_name;
+        role_name = getRoleName(role_name);
+        let employee_id = employee ? `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}_${role_name}` : 'manager';
+        if (pg_checks_ids.indexOf(check.id) < 0) {
+          new_checks = [...new_checks, {
+            ...check,
+            location: loc,
+            trading_day: trading_day.date,
+            ...(airtable_employees[employee_id] ? { employee: employee_id } : {})
+          }];
+        }
+        // Import Check Items
+        new_check_items = [...new_check_items, ...check.items.filter((item: any) => pg_check_items_ids.indexOf(item.id) < 0)];
+        // Import Payments
+        if (check.payments) {
+          new_payments = [...new_payments, ...check.payments.filter((payment: any) => pg_payments_ids.indexOf(payment.id) < 0).map((payment: any) => ({
+            ...payment,
+            trading_day_id: payment.trading_day,
+            trading_day: trading_day.date,
+            ...(airtable_employees[employee_id] ? { employee: employee_id } : {})
+          }))];
+        }
+      }
+    }
+
+    if (new_items.length) {
+      console.log(`New Items ${new_items.length} To PostgreSQL`);
+      let sql_str = new_items.reduce((sql, item, index) => {
+        return sql + `($$${item.item_id}$$,$$${item.name}$$,${item.price},$$${item.category}$$,$$${item.status}$$,$$${item.tax}$$,`
+          + `$$${item.item_type}$$,$$${item.description || ''}$$,$$${item.location}$$)` + (index < (new_items.length - 1) ? ', ' : ';');
+      }, 'INSERT INTO Items (item_id, name, price, category, status, tax, item_type, description, location) VALUES');
+      await db.query(sql_str, []);
+    }
+
+    if (new_checks.length) {
+      console.log(`New Checks ${new_checks.length} To PostgreSQL`);
+      let sql_str = new_checks.reduce((sql, check, index) => {
+        return sql + `($$${check.id}$$,$$${check.name}$$,${check.number},$$${check.status}$$,${check.sub_total},${check.tax_total},`
+          + `${check.total},${check.mandatory_tip_amount},$$${check.open_time}$$,$$${check.close_time}$$,$$${check.employee_name}$$,`
+          + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
+          + `$$${check.type}$$,${check.type_id},$$${check.taxed_type}$$,$$${check.table_name || ''}$$,$$${check.location}$$,$$${check.zone || ''}$$,`
+          + `${check.autograt_tax},$$${check.trading_day_id}$$,$$${check.trading_day}$$,$$${check.updated_at}$$,`
+          + `${check.non_revenue_total},${check.outstanding_balance})` + (index < (new_checks.length - 1) ? ', ' : ';');
+      }, 'INSERT INTO checks (id, name, number, status, sub_total, tax_total, '
+      + 'total, mandatory_tip_amount, open_time, close_time, employee_name, '
+      + 'employee_role_name, employee_id, employee, guest_count, '
+      + 'type, type_id, taxed_type, table_name, location, zone, autograt_tax, trading_day_id, trading_day, '
+      + 'updated_at, non_revenue_total, outstanding_balance) VALUES ');
+      await db.query(sql_str, []);
+    }
+
+    if (new_check_items.length) {
+      console.log(`New Check Items ${new_check_items.length} To PostgreSQL`);
+      let sql_str = new_check_items.reduce((sql, check_item, index) => {
+        return sql + `($$${check_item.id}$$,$$${check_item.check_id}$$,$$${check_item.name}$$,$$${check_item.date}$$,$$${check_item.item_id}$$,`
+          + `${check_item.quantity || 0},${check_item.price || 0},${check_item.pre_tax_price || 0},${check_item.regular_price || 0},${check_item.cost || 0},`
+          + `${check_item.tax || 0},${check_item.comp_total},${check_item.comp_tax})` + (index < (new_check_items.length - 1) ? ', ' : ';');
+      }, 'INSERT INTO check_items (id, check_id, name, date, item_id, '
+      + 'quantity, price, pre_tax_price, regular_price, cost, '
+      + 'tax, comp_total, comp_tax) VALUES ');
+      await db.query(sql_str, []);
+    }
+
+    if (new_payments.length) {
+      console.log(`New Payments ${new_payments.length} To PostgreSQL`);
+      let sql_str = new_payments.reduce((sql, payment, index) => {
+        return sql + `($$${payment.id}$$,$$${payment.check_id}$$,${payment.amount},${payment.tip_amount},$$${payment.date}$$,`
+          + `$$${payment.cc_name || ''}$$,$$${payment.cc_type || ''}$$,$$${payment.last_4 || ''}$$,$$${payment.trading_day_id}$$,$$${payment.trading_day}$$,`
+          + `${payment.tips_withheld},$$${payment.employee_name || ''}$$,$$${payment.employee_role_name || ''}$$,$$${payment.employee_id || ''}$$,`
+          + `$$${payment.employee ? payment.employee : 'manager'}$$,$$${payment.type}$$)` + (index < (new_payments.length - 1) ? ', ' : ';');
+      }, 'INSERT INTO payments (id, check_id, amount, tip_amount, date, '
+      + 'cc_name, cc_type, last_4, trading_day_id, trading_day, '
+      + 'tips_withheld, employee_name, employee_role_name, employee_id, '
+      + 'employee, type) VALUES ');
+      await db.query(sql_str, []);
+    }
+
+    base('PG Import').create([{
+      "fields": {
+        "From": fromDate,
+        "To": toDate,
+        "Status": "Success"
+      }
+    }]);
+    return 'Success';
+
+  } catch (e) {
+    console.log(e);
+    base('PG Import').create([{
+      "fields": {
+        "From": fromDate,
+        "To": toDate,
+        "Status": "Fail"
+      }
+    }]);
+    return 'Fail';
+  }
+
+});
+
+const getPGLastUpdated = (): Promise<string> => {
+  return new Promise(resolve => {
+    let last_updated = '';
+    base('PG Import').select({
+      fields: ["To"],
+      maxRecords: 1,
+      view: "Grid view",
+      sort: [{ field: "To", direction: "desc" }]
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      records.forEach((record) => {
+        last_updated = record.get("To");
+      });
+      fetchNextPage();
+
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve(''); }
+      console.log(`Last Updated: ${last_updated}`);
+      resolve(last_updated);
+    });
+  })
+}
