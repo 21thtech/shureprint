@@ -1302,10 +1302,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if (role_name === 'Manager' && acc.location === 'The Peppermint Club') {
             id = '12495_Denvre_The Peppermint Club_Server';
             role_name = 'Server';
+          } else if (role_name === 'Manager' && acc.location === 'SHOREbar') {
+            id = '14695_Matthew_SHOREbar_Bartender';
+            role_name = 'Bartender';
           } else if (id === '_Nate_Delilah_Bartender') {
             id = '14211_Nate_Delilah_Bartender';
           } else if (id === '_Jordan_Delilah_Bartender') {
             id = '14581_Jordan_Delilah_Bartender';
+          } else if (id === '_Jean Paul_Delilah_Bartender') {
+            id = '14428_Jean Paul_Delilah_Bartender';
           } else if (id === '_Jordan_The Peppermint Club_Bartender') {
             id = '14581_Jordan_The Peppermint Club_Bartender';
           }
@@ -1337,7 +1342,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               "Override Point": null,
               "Final Tips": 0,
               "Service Charge": 0,
-              "Venue Weekly Data": [venue_data[`${weekday}_${acc.location}`]]
+              "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [venue_data[`${weekday}_${acc.location}`]] : []
             }
           }
 
@@ -1516,7 +1521,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 "Override Point": null,
                 "Final Tips": 0,
                 "Service Charge": 0,
-                "Venue Weekly Data": [venue_data[`${weekday}_${acc.location}`]]
+                "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [venue_data[`${weekday}_${acc.location}`]] : []
               }
             } else {
               airtable_data[airtable_id]['Midday'] = midday;
@@ -1779,8 +1784,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let role_name = airtable_data[id]['Role Name'];
           let location = airtable_data[id]['Location'];
           let midday = airtable_data[id]['Midday'];
-          delete airtable_data[id]['Role Name'];
-          delete airtable_data[id]['Location'];
           if (airtable_data[id]['Day'] !== trading_day.date || location !== acc.location) continue;
           if (!airtable_data[id]['Point']) continue;
           let point = airtable_data[id]['Point'];
@@ -1889,12 +1892,22 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   }
 
   let converted_airtable_data: any[] = [];
+  let sql_str = 'INSERT INTO reports (airtable_id, employee, midday, week_beginning, day, reg_hours, ot_hours, dot_hours, total_hours,'
+    + 'exceptions_pay, total_pay, cash_tips, card_tips, autograt, point, over_point, reason, total_tips, service_charge, final_tips, location) VALUES';
+
   for (let key of Object.keys(airtable_data)) {
     let employee_id = key.slice(11);
-    if (airtable_employees[employee_id] && (airtable_data[key]['Total Pay'] || airtable_data[key]['Service Charge'] || airtable_data[key]['Total Tips'] || airtable_data[key]['Final Tips'])) {
+    let row = airtable_data[key];
+    if (airtable_employees[employee_id] && (row['Total Pay'] || row['Service Charge'] || row['Total Tips'] || row['Final Tips'])) {
+      sql_str += `($$${key}$$, $$${employee_id}$$, $$${row['Midday'] || ''}$$, $$${row['Week Beginning']}$$, $$${row['Day']}$$,`
+        + `${row['Reg Hours']},${row['OT Hours']},${row['DOT Hours']},${row['Total Hours']},${row['Exceptions Pay']},${row['Total Pay']},`
+        + `${row['Cash Tips']},${row['Card Tips']},${row['AutoGrat']},${row['Point']},${row['Override Point']},$$${row['Reason'] || ''}$$,`
+        + `${row['Total Tips']},${row['Service Charge']},${row['Final Tips']},$$${row['Location']}$$),`;
+      delete row['Role Name'];
+      delete row['Location'];
       converted_airtable_data = [...converted_airtable_data, {
         fields: {
-          ...airtable_data[key],
+          ...row,
           "Employee": [
             airtable_employees[employee_id].getId()
           ]
@@ -1903,26 +1916,30 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
     }
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
-
-  // Delete Old Records;
-  const removalWebhook = {
-    method: 'POST',
-    url: `https://hooks.airtable.com/workflows/v1/genericWebhook/appm3mga3DgMuxH6M/wfly8cF1lc7sVJwwd/wtrK01xUSMAfIQnXu`,
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept: 'application/json',
-    },
-    form: {
-      fromDate: fromDate,
-      toDate: toDate,
-      locationId: locationId
-    }
-  };
-
-  let webhook_res: any = await doRequest(removalWebhook);
-  console.log(`Removal webhook results: `, webhook_res);
+  sql_str = sql_str.slice(0, sql_str.length - 1) + ';';
 
   try {
+    // Delete Old Records;
+    await db.query(`DELETE from reports WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${Object.keys(locations).find(loc => locations[loc].location_id === locationId)}\';` : ";"), []);
+    await db.query(sql_str, []);
+
+    const removalWebhook = {
+      method: 'POST',
+      url: `https://hooks.airtable.com/workflows/v1/genericWebhook/appm3mga3DgMuxH6M/wfly8cF1lc7sVJwwd/wtrK01xUSMAfIQnXu`,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      form: {
+        fromDate: fromDate,
+        toDate: toDate,
+        locationId: locationId
+      }
+    };
+
+    let webhook_res: any = await doRequest(removalWebhook);
+    console.log(`Removal webhook results: `, webhook_res);
+
     while (converted_airtable_data.length > 0) {
       await base('Reports').create(converted_airtable_data.slice(0, 10));
       converted_airtable_data = converted_airtable_data.slice(10);
@@ -2151,6 +2168,12 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
               "Email": "aguerrero@hwoodgroup.com",
               "Name": "Ada Guerrero",
             }, {
+              "Email": "JGarcia@hwoodgroup.com",
+              "Name": "Javier Garcia",
+            }, {
+              "Email": "LHernandez@hwoodgroup.com",
+              "Name": "Lucy Hernandez",
+            }, {
               "Email": "markkostevych111@gmail.com",
               "Name": "Mark Kostevych",
             }],
@@ -2245,15 +2268,13 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
 
 });
 
-export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule('every 10 minutes').onRun(async (context) => {
-  let last_updated = await getPGLastUpdated();
-  if (!last_updated) {
-    last_updated = '2019-12-31';
-  } else if (new Date(last_updated) > new Date()) {
-    return null;
-  }
-  let fromDate = new Date(new Date(last_updated).getTime() + 24 * 3600000).toISOString().split('T')[0];
-  let toDate = new Date(new Date(last_updated).getTime() + 10 * 24 * 3600000).toISOString().split('T')[0];
+export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule('0 9 * * *').onRun(async (context) => {
+
+  let now = new Date();
+
+  let fromDate = new Date(now.getTime() - 3 * 24 * 3600000).toISOString().split('T')[0];
+  let toDate = now.toISOString().split('T')[0];
+  // }
   try {
     console.log(`Data Import From Upserve To PG Server: From ${fromDate} To ${toDate}`);
     // GET Employees From PGTable
@@ -2280,11 +2301,6 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
     const pg_check_items = await db.query("SELECT id from check_items;", []);
     const pg_check_items_ids: string[] = pg_check_items.rows.map((item: any) => item.id);
     console.log('Got Check Items From PGTable : ' + pg_check_items_ids.length);
-
-    // GET Reports From PGTable
-    // const pg_reports = await db.query("SELECT airtable_id from reports;", []);
-    // const pg_reports_ids = pg_reports.rows.map((item: any) => item.airtable_id);
-    // console.log('Got Reports From PGTable : ' + pg_reports.length);
 
     // GET Employees From Airtable
     let airtable_employees: any = await getEmployeeData();
@@ -2319,6 +2335,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
 
       let acc = locations[loc];
       if (!acc.user) continue;
+      // if (locationId && acc.location_id !== locationId) continue;
       // Import Items
       let items: any[] = await getUpsertAPIResponse(
         `https://api.breadcrumb.com/ws/v2/items.json?`,
@@ -2332,7 +2349,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
 
       // Import Checks
       let checks: any[] = await getUpsertAPIResponse(
-        `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate}`,
+        `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate}&status=closed&updated_after=${new Date(now.getTime() - 24 * 3600000).toISOString()}`,
         acc.user,
         acc.password,
         0
@@ -2395,8 +2412,8 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
     if (new_checks.length) {
       console.log(`New Checks ${new_checks.length} To PostgreSQL`);
       let sql_str = new_checks.reduce((sql, check, index) => {
-        return sql + `($$${check.id}$$,$$${check.name}$$,${check.number},$$${check.status}$$,${check.sub_total},${check.tax_total},`
-          + `${check.total},${check.mandatory_tip_amount},$$${check.open_time}$$,$$${check.close_time}$$,$$${check.employee_name}$$,`
+        return sql + `($$${check.id}$$,$token$${check.name}$token$,${check.number},$$${check.status}$$,${check.sub_total},${check.tax_total},`
+          + `${check.total},${check.mandatory_tip_amount},$$${check.open_time}$$,$$${check.close_time || check.open_time}$$,$$${check.employee_name}$$,`
           + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
           + `$$${check.type}$$,${check.type_id},$$${check.taxed_type}$$,$$${check.table_name || ''}$$,$$${check.location}$$,$$${check.zone || ''}$$,`
           + `${check.autograt_tax},$$${check.trading_day_id}$$,$$${check.trading_day}$$,$$${check.updated_at}$$,`
@@ -2425,7 +2442,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
       console.log(`New Payments ${new_payments.length} To PostgreSQL`);
       let sql_str = new_payments.reduce((sql, payment, index) => {
         return sql + `($$${payment.id}$$,$$${payment.check_id}$$,${payment.amount},${payment.tip_amount},$$${payment.date}$$,`
-          + `$$${payment.cc_name || ''}$$,$$${payment.cc_type || ''}$$,$$${payment.last_4 || ''}$$,$$${payment.trading_day_id}$$,$$${payment.trading_day}$$,`
+          + `$token$${payment.cc_name ? payment.cc_name : ''}$token$,$$${payment.cc_type || ''}$$,$$${payment.last_4 || ''}$$,$$${payment.trading_day_id}$$,$$${payment.trading_day}$$,`
           + `${payment.tips_withheld},$$${payment.employee_name || ''}$$,$$${payment.employee_role_name || ''}$$,$$${payment.employee_id || ''}$$,`
           + `$$${payment.employee ? payment.employee : 'manager'}$$,$$${payment.type}$$)` + (index < (new_payments.length - 1) ? ', ' : ';');
       }, 'INSERT INTO payments (id, check_id, amount, tip_amount, date, '
@@ -2435,47 +2452,16 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
       await db.query(sql_str, []);
     }
 
-    base('PG Import').create([{
-      "fields": {
-        "From": fromDate,
-        "To": toDate,
-        "Status": "Success"
-      }
-    }]);
-    return 'Success';
+    console.log('Success');
+    return null;
 
   } catch (e) {
-    console.log(e);
-    base('PG Import').create([{
-      "fields": {
-        "From": fromDate,
-        "To": toDate,
-        "Status": "Fail"
-      }
-    }]);
-    return 'Fail';
+    console.error(e);
+    return null;
   }
 
 });
 
-const getPGLastUpdated = (): Promise<string> => {
-  return new Promise(resolve => {
-    let last_updated = '';
-    base('PG Import').select({
-      fields: ["To"],
-      maxRecords: 1,
-      view: "Grid view",
-      sort: [{ field: "To", direction: "desc" }]
-    }).eachPage(function page(records: any[], fetchNextPage: any) {
-      records.forEach((record) => {
-        last_updated = record.get("To");
-      });
-      fetchNextPage();
+export const checkUnApprovedPunches = functions.runWith(runtimeOpts).pubsub.schedule('0 5 0 0 0').onRun(async (context) => {
 
-    }, function done(err: any) {
-      if (err) { console.error(err); resolve(''); }
-      console.log(`Last Updated: ${last_updated}`);
-      resolve(last_updated);
-    });
-  })
-}
+});
