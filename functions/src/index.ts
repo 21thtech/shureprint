@@ -33,6 +33,7 @@ const SOS_TOKEN = "qBHLLcyqam0hziNPA58cjeLQknGaLxnoUeH-X9ve23atvMEXeo78knorfiWU9
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
+const cin7_base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appKWq1KHqzZeJ3uF');
 const db = require('./db');
 
 const useReceiptHtml = (body: any) => {
@@ -1017,7 +1018,7 @@ function doRequest(option: any) {
       if (!error && res.statusCode == 200) {
         resolve(JSON.parse(body.toString()));
       } else {
-        console.log(error);
+        console.log("Request Error: ", error);
         reject(error);
       }
     });
@@ -1290,7 +1291,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if (role_name === 'Admin' && acc.location === 'Petite Taqueria') {
             id = '17642_Marco_Petite Taqueria_Bartender';
             role_name = 'Bartender';
-          } else if (role_name === 'Manager' && acc.location === 'Bird Streets Club') {
+          } else if ((role_name === 'Manager' || role_name === 'Events') && acc.location === 'Bird Streets Club') {
             id = '11246_Michael_Bird Streets Club_Server';
             role_name = 'Server';
           } else if (role_name === 'Manager' && acc.location === 'The Nice Guy') {
@@ -2462,6 +2463,102 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
 
 });
 
-export const checkUnApprovedPunches = functions.runWith(runtimeOpts).pubsub.schedule('0 5 0 0 0').onRun(async (context) => {
+export const checkUnApprovedPunches = functions.runWith(runtimeOpts).pubsub.schedule('0 5 * * *').onRun(async (context) => {
+  let now = new Date();
+  let yesterday = new Date(now.getTime() - 24 * 3600000).toISOString().split('T')[0];
+  console.log(`Getting Time Punchs From ${yesterday} To ${now}`);
 
+  let cursor = null;
+  let unapproved_punches: any[] = [];
+  while (true) {
+    const options = {
+      method: 'GET',
+      url: `https://api.7shifts.com/v2/company/${company_id}/time_punches?limit=100&modified_since=${yesterday}`
+        + (cursor ? `&cursor=${cursor}` : ''),
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${ACCESS_TOKEN}`
+      }
+    };
+
+    let res: any = await doRequest(options);
+    unapproved_punches = [...unapproved_punches, ...res.data.filter((punch: any) => !punch.approved)];
+    if (!res.meta.cursor.next) break;
+    cursor = res.meta.cursor.next;
+  }
+  console.log('Get Unapproved Punches ', unapproved_punches.length);
+
+  for (let loc of Object.keys(locations)) {
+    let unapproved_count = unapproved_punches.filter(punch => punch.location_id == locations[loc].location_id).length;
+    console.log(`Unapproved Punches For ${loc}: ${unapproved_count}`);
+    if (unapproved_count) {
+
+      const azureWebhook = {
+        method: 'POST',
+        url: `https://prod-143.westus.logic.azure.com:443/workflows/2f23741af3974661bec20c4503b5c41a/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6L3-Hy3SyGJX4iNub31PauJkj4aZ1wg6JnOhcUyzIlo`,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+        },
+        form: {
+          "type": "unapproved_punches", "venue": loc, "Unapproved Punches": unapproved_count
+        }
+      };
+
+      let webhook_res: any = await request(azureWebhook);
+      console.log(`Unapproved Punch Webhook results: `, webhook_res.body);
+    }
+  }
 });
+
+export const exportProductSOSIDs = functions.runWith(runtimeOpts).https.onRequest(async (req: any, response: any) => {
+  response.set('Access-Control-Allow-Origin', '*');
+  response.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+  response.set('Access-Control-Allow-Headers', '*');
+
+  if (['OPTIONS', 'GET', 'PUT'].indexOf(req.method) > - 1) {
+    response.status(405).send('Method Not Allowed');
+  } else {
+    try {
+      console.log(req.body);
+      const body = JSON.parse(req.body);
+      console.log(body);
+      const order_items = body.order_items;
+      console.log(order_items);
+      const sos_ids = await getProductSOSIDs(order_items);
+      response.type("application/json");
+      response.status(200).send(sos_ids);
+    } catch (e) {
+      console.log(e);
+      response.status(500).send(e);
+    }
+
+  }
+})
+
+const getProductSOSIDs = (product_ids: string[]) => {
+  return new Promise(resolve => {
+    let sos_ids: any[] = [];
+    let descriptions: any[] = [];
+    let names: any = {};
+    cin7_base('Products').select({
+      fields: ["SOS_ID", "Description", "Product/Service Name"],
+      maxRecords: 10000,
+      view: "Grid view"
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      records.forEach((record) => {
+        if (product_ids.indexOf(record.getId()) > -1) {
+          sos_ids = [...sos_ids, Number(record.get('SOS_ID'))];
+          descriptions = [...descriptions, record.get('Description')];
+          names[record.getId()] = record.get('Product/Service Name');
+        }
+      });
+      fetchNextPage();
+
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve(null); }
+      console.log('Get Products SOS IDs: ', sos_ids);
+      resolve({sos_ids, descriptions, names});
+    });
+  })
+}
