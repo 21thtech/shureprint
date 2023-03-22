@@ -1113,6 +1113,28 @@ const getOverPointData = () => {
   })
 }
 
+const getDelilahAdditionalData = (fromDate: string, toDate: string) => {
+  return new Promise(resolve => {
+    let additional_data: any = {};
+    base('Delilah Additional').select({
+      fields: ["Identity", "Amount"],
+      maxRecords: 1000,
+      view: "Grid view",
+      filterByFormula: `"And(DATESTR({Date}) >= ${fromDate}, DATESTR({Date}) <= ${toDate})"`
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      records.forEach((record) => {
+        additional_data[record.get('Identity')] = record.get("Amount");
+      });
+      fetchNextPage();
+
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve(null); }
+      console.log(`Get Delilah Additional Tip Data from ${fromDate} to ${toDate}`);
+      resolve(additional_data);
+    });
+  })
+}
+
 const getTipReport = async (fromDate: string, toDate: string, locationId?: string) => {
   let users: any[] = [];
   let airtable_data: any = {};
@@ -1120,6 +1142,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   let overpoint_data: any = {};
   let venue_data: any = {};
   let transfer_data: any = {};
+  let additional_data: any = {};
 
   console.log('getTipReport Started.')
   // Get Airtable Employees Data;
@@ -1127,6 +1150,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   overpoint_data = await getOverPointData();
   venue_data = await getVenueData();
   transfer_data = await getTransferData(fromDate, toDate);
+  additional_data = await getDelilahAdditionalData(fromDate, toDate);
 
   console.log(`Getting 7shift Report from ${fromDate} to ${toDate}` + (locationId ? ` For ${locationId}` : ''));
 
@@ -1294,7 +1318,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if ((role_name === 'Manager' || role_name === 'Events') && acc.location === 'Bird Streets Club') {
             id = '11246_Michael_Bird Streets Club_Server';
             role_name = 'Server';
-          } else if (role_name === 'Manager' && acc.location === 'The Nice Guy') {
+          } else if ((role_name === 'Manager' || role_name === 'Events') && acc.location === 'The Nice Guy') {
             id = '10196_Jason_The Nice Guy_Server';
             role_name = 'Server';
           } else if (role_name === 'Manager' && acc.location === 'Delilah') {
@@ -1352,6 +1376,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (check.payments) {
             for (let payment of check.payments) {
               if (payment.type === 'Cash') {
+                if (check.trading_day_id === '0fdef4ea-3d9d-4fe4-8900-fb49f0ba2511' && check.employee_id === '38521f27-cd2a-41bc-af70-74828f9e789c') continue;
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1435,6 +1460,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         if (trading_day.date === '2023-01-23' && acc.location === 'Bird Streets Club') {
           serverPool.tips += 50;
           airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
+        }
+        // Exceptional Service Charge
+        if (acc.location === 'Delilah' && additional_data[trading_day.date]) {
+          bartenderPool.tips += additional_data[trading_day.date];
         }
 
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
@@ -1544,6 +1573,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             let over_point;
             if (overpoint_data[airtable_id]) {
               over_point = overpoint_data[airtable_id]['over_point'];
+              console.log(airtable_id, over_point);
             }
             daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
 
@@ -1553,11 +1583,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts += over_point || total_hours > 0 ? 1 : 0;
+                    event.pts += over_point || (total_hours > 0 ? 1 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += over_point || total_hours > 0 ? 1 : 0;
+                    event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
                   } else if (acc.type === 'nightclub1' && midday === 'pm') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1575,11 +1605,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts += over_point || total_hours > 0 ? 1 : 0;
+                    event.pts += over_point || (total_hours > 0 ? 1 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += over_point || total_hours > 0 ? 1 : 0;
+                    event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
                   } else if (acc.type === 'nightclub1' && midday === 'pm') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1598,16 +1628,16 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
                       pts = total_hours > 0 ? 1 : 0;
                       if (over_point === 0) break;
-                      event.pts += over_point || total_hours > 0 ? 1 : 0;
+                      event.pts += over_point || (total_hours > 0 ? 1 : 0);
                     } else {
                       pts = total_hours > 0 ? 0.5 : 0;
                       if (over_point === 0) break;
-                      event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     }
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
+                    event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (acc.type == 'restaurant') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1616,14 +1646,14 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = 0.4 * daily_pts;
                     if (over_point === 0) break;
                     busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
-                    busserRunnerPool.pts += over_point || 0.4 * daily_pts;
+                    busserRunnerPool.pts += over_point || (0.4 * daily_pts);
                   } else if (acc.type === 'nightclub1') {
                     pts = 0.4 * daily_pts;
                     if (over_point === 0) break;
                     if (midday === 'pm') {
-                      serverPool.pts_pm += over_point || 0.4 * daily_pts;
+                      serverPool.pts_pm += over_point || (0.4 * daily_pts);
                     } else {
-                      serverPool.pts += over_point || 0.4 * daily_pts;
+                      serverPool.pts += over_point || (0.4 * daily_pts);
                     }
                   }
                   break;
@@ -1633,11 +1663,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.25 : 0;
                     if (over_point === 0) break;
-                    event.pts += over_point || total_hours > 0 ? 0.25 : 0;
+                    event.pts += over_point || (total_hours > 0 ? 0.25 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.25 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += over_point || total_hours > 0 ? 0.25 : 0;
+                    event.pts_pm += over_point || (total_hours > 0 ? 0.25 : 0);
                   } else if (acc.type == 'restaurant') {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1646,9 +1676,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = 0.1 * daily_pts;
                     if (over_point === 0) break;
                     if (midday === 'pm') {
-                      serverPool.pts_pm += over_point || 0.1 * daily_pts;
+                      serverPool.pts_pm += over_point || (0.1 * daily_pts);
                     } else {
-                      serverPool.pts += over_point || 0.1 * daily_pts;
+                      serverPool.pts += over_point || (0.1 * daily_pts);
                     }
                   }
                   break;
@@ -1657,24 +1687,24 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
-                    event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
+                    event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (acc.type === 'nightclub1') {
                     pts = 0.5 * daily_pts;
                     if (over_point === 0) break;
                     if (midday === 'pm') {
-                      bartenderPool.pts_pm += over_point || 0.5 * daily_pts;
+                      bartenderPool.pts_pm += over_point || (0.5 * daily_pts);
                     } else {
-                      bartenderPool.pts += over_point || 0.5 * daily_pts;
+                      bartenderPool.pts += over_point || (0.5 * daily_pts);
                     }
                   } else {
                     pts = daily_pts / 2;
                     if (over_point === 0) break;
                     barbackPool.count += total_hours_point > 0 ? 0.5 : 0;
-                    barbackPool.pts += over_point || daily_pts / 2;
+                    barbackPool.pts += over_point || (daily_pts / 2);
                   }
                   break;
                 }
@@ -1687,11 +1717,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
                     if (event.tips > 0 && midday !== 'pm') {
-                      event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else if (event.tips_pm > 0 && midday === 'pm') {
-                      event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
+                      event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else {
-                      bohPool.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                      bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     }
                   }
                   break;
@@ -1701,11 +1731,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
                     if (event.tips > 0 && midday !== 'pm') {
-                      event.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else if (event.tips_pm > 0 && midday === 'pm') {
-                      event.pts_pm += over_point || total_hours > 0 ? 0.5 : 0;
+                      event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else {
-                      sushiPool.pts += over_point || total_hours > 0 ? 0.5 : 0;
+                      sushiPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     }
                   }
                   break;
@@ -2057,6 +2087,8 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
 
   let csv_data: any = {};
   let converted_csv_data: any[] = [];
+  let csv_data_venue: any = {};
+  let converted_csv_data_venue: any[] = [];
 
   // Get Airtable Employees Data
   return base('Reports').select({
@@ -2067,6 +2099,7 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
     records.forEach((record) => {
       let employee = record.get('Employee')[0];
       let hourly_wage = record.get('Reg Rate')[0];
+      let identity = record.get('Location')[0] + '_' + record.get('Day')
       if (!csv_data[employee]) {
         csv_data[employee] = {
           employee_id: record.get('Employee ID')[0],
@@ -2089,6 +2122,7 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
           cc_tips: 0,
           auto_grat: 0,
           total_tips: 0,
+          service_charge: 0,
           final_tips: 0,
           week: record.get('Week Beginning')
         }
@@ -2103,7 +2137,22 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
       csv_data[employee].cc_tips += Math.round(record.get('Card Tips') * 100) / 100;
       csv_data[employee].auto_grat += Math.round(record.get('AutoGrat') * 100) / 100;
       csv_data[employee].total_tips += Math.round(record.get('Total Tips') * 100) / 100;
+      csv_data[employee].service_charge += Math.round(record.get('Service Charge') * 100) / 100;
       csv_data[employee].final_tips += Math.round(record.get('Final Tips') * 100) / 100;
+
+      if (!csv_data_venue[identity]) {
+        csv_data_venue[identity] = {
+          location: record.get('Location')[0],
+          day: record.get('Day'),
+          total_tips: 0,
+          service_charge: 0,
+          final_tips: 0
+        }
+      }
+
+      csv_data_venue[identity].total_tips += Math.round(record.get('Total Tips') * 100) / 100;
+      csv_data_venue[identity].service_charge += Math.round(record.get('Service Charge') * 100) / 100;
+      csv_data_venue[identity].final_tips += Math.round(record.get('Final Tips') * 100) / 100;
     });
     fetchNextPage();
 
@@ -2112,12 +2161,19 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
     for (let key of Object.keys(csv_data)) {
       converted_csv_data = [...converted_csv_data, csv_data[key]];
     }
+    for (let key of Object.keys(csv_data_venue)) {
+      converted_csv_data_venue = [...converted_csv_data_venue, csv_data_venue[key]];
+    }
+
     const weekday = converted_csv_data.length > 0 ? converted_csv_data[0]['week'] : getMonday(new Date(), 0);
     console.log('Get Airtable Reports For Week ' + weekday);
     converted_csv_data = converted_csv_data.sort((a, b) => a.first.localeCompare(b.first))
       .sort((a, b) => a.role_name.localeCompare(b.role_name))
       .sort((a, b) => a.location.localeCompare(b.location));
     console.log('Get CSV Date: ', converted_csv_data.length);
+    converted_csv_data_venue = converted_csv_data_venue.sort((a, b) => a.day.localeCompare(b.day))
+      .sort((a, b) => a.location.localeCompare(b.location));
+    console.log('Get CSV Date For Venue: ', converted_csv_data_venue.length);
 
     const csv = await json2csvAsync(converted_csv_data, {
       keys: [
@@ -2141,54 +2197,72 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
         { field: 'cc_tips', title: 'Card Tips' },
         { field: 'auto_grat', title: 'AutoGrat' },
         { field: 'total_tips', title: 'Total Tips' },
+        { field: 'service_charge', title: 'Service Charge' },
         { field: 'final_tips', title: 'Final Tips' },
       ]
     });
 
+    const csv_venue = await json2csvAsync(converted_csv_data_venue, {
+      keys: [
+        { field: 'location', title: 'Location' },
+        { field: 'day', title: 'Day' },
+        { field: 'total_tips', title: 'Total Tips' },
+        { field: 'service_charge', title: 'Service Charge' },
+        { field: 'final_tips', title: 'Final Tips' },
+      ]
+    })
+
     const storage = getStorage(app);
     const csvFileRef = ref(storage, `weekly_report/weekly_report_for_${weekday}(wages, tips).csv`);
-    return uploadString(csvFileRef, csv).then((snapshot: any) => {
-      return getDownloadURL(csvFileRef).then((downloadURL: string) => {
-        console.log(downloadURL);
-        return send.request({
-          Messages: [{
-            "From": {
-              "Email": "connector@hwoodgroup.com",
-              "Name": "Appy",
-            },
-            "To": [{
-              "Email": "michael@hwoodgroup.com",
-              "Name": "Michael Green",
-            }, {
-              "Email": "lydia@hwoodgroup.com",
-              "Name": "Lydia Saylor",
-            }, {
-              "Email": "tharris@hwoodgroup.com",
-              "Name": "Tierra Harris",
-            }, {
-              "Email": "aguerrero@hwoodgroup.com",
-              "Name": "Ada Guerrero",
-            }, {
-              "Email": "JGarcia@hwoodgroup.com",
-              "Name": "Javier Garcia",
-            }, {
-              "Email": "LHernandez@hwoodgroup.com",
-              "Name": "Lucy Hernandez",
-            }, {
-              "Email": "markkostevych111@gmail.com",
-              "Name": "Mark Kostevych",
-            }],
-            "Subject": `Wage & Tip Report For Week ${weekday}`,
-            "HTMLPart": `Hi, click <a href="${downloadURL}">Here</a> to download weekly report. Thank you.`
-          }]
-        }).then((res: any) => {
-          console.log(res.body);
-          return;
-        }).catch((err: any) => {
-          console.log(err.message);
-          return;
-        })
-      });
+    await uploadString(csvFileRef, csv);
+    const downloadURL = await getDownloadURL(csvFileRef)
+    console.log(downloadURL);
+
+
+    const csvVenueFileRef = ref(storage, `weekly_report/weekly_report_for_${weekday}(venue).csv`);
+    await uploadString(csvVenueFileRef, csv_venue);
+    const downloadURL1 = await getDownloadURL(csvVenueFileRef)
+    console.log(downloadURL1);
+
+    return send.request({
+      Messages: [{
+        "From": {
+          "Email": "connector@hwoodgroup.com",
+          "Name": "Appy",
+        },
+        "To": [{
+          "Email": "michael@hwoodgroup.com",
+          "Name": "Michael Green",
+        }, {
+          "Email": "lydia@hwoodgroup.com",
+          "Name": "Lydia Saylor",
+        }, {
+          "Email": "tharris@hwoodgroup.com",
+          "Name": "Tierra Harris",
+        }, {
+          "Email": "aguerrero@hwoodgroup.com",
+          "Name": "Ada Guerrero",
+        }, {
+          "Email": "JGarcia@hwoodgroup.com",
+          "Name": "Javier Garcia",
+        }, {
+          "Email": "LHernandez@hwoodgroup.com",
+          "Name": "Lucy Hernandez",
+        }, {
+          "Email": "markkostevych111@gmail.com",
+          "Name": "Mark Kostevych",
+        }],
+        "Subject": `Wage & Tip Report For Week ${weekday}`,
+        "HTMLPart": `Hello<br><br>Click <a href="${downloadURL}">Here</a> to download weekly report.<br>
+        Click <a href="${downloadURL1}">Here</a> to view the report by locations.
+        <br><br> Thank you.`
+      }]
+    }).then((res: any) => {
+      console.log(res.body);
+      return;
+    }).catch((err: any) => {
+      console.log(err.message);
+      return;
     });
   });
 
@@ -2418,12 +2492,12 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
           + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
           + `$$${check.type}$$,${check.type_id},$$${check.taxed_type}$$,$$${check.table_name || ''}$$,$$${check.location}$$,$$${check.zone || ''}$$,`
           + `${check.autograt_tax},$$${check.trading_day_id}$$,$$${check.trading_day}$$,$$${check.updated_at}$$,`
-          + `${check.non_revenue_total},${check.outstanding_balance})` + (index < (new_checks.length - 1) ? ', ' : ';');
+          + `${check.non_revenue_total},${check.sub_total - check.non_revenue_total / 100.0},${check.outstanding_balance})` + (index < (new_checks.length - 1) ? ', ' : ';');
       }, 'INSERT INTO checks (id, name, number, status, sub_total, tax_total, '
       + 'total, mandatory_tip_amount, open_time, close_time, employee_name, '
       + 'employee_role_name, employee_id, employee, guest_count, '
       + 'type, type_id, taxed_type, table_name, location, zone, autograt_tax, trading_day_id, trading_day, '
-      + 'updated_at, non_revenue_total, outstanding_balance) VALUES ');
+      + 'updated_at, non_revenue_total, revenue_total, outstanding_balance) VALUES ');
       await db.query(sql_str, []);
     }
 
@@ -2497,12 +2571,12 @@ export const checkUnApprovedPunches = functions.runWith(runtimeOpts).pubsub.sche
         method: 'POST',
         url: `https://prod-143.westus.logic.azure.com:443/workflows/2f23741af3974661bec20c4503b5c41a/triggers/manual/paths/invoke?api-version=2016-06-01&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=6L3-Hy3SyGJX4iNub31PauJkj4aZ1wg6JnOhcUyzIlo`,
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        form: {
+        body: JSON.stringify({
           "type": "unapproved_punches", "venue": loc, "Unapproved Punches": unapproved_count
-        }
+        })
       };
 
       let webhook_res: any = await request(azureWebhook);
@@ -2558,7 +2632,7 @@ const getProductSOSIDs = (product_ids: string[]) => {
     }, function done(err: any) {
       if (err) { console.error(err); resolve(null); }
       console.log('Get Products SOS IDs: ', sos_ids);
-      resolve({sos_ids, descriptions, names});
+      resolve({ sos_ids, descriptions, names });
     });
   })
 }
