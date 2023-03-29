@@ -1300,7 +1300,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           // exceptional cases
           if (id === '18931_Raine_Bootsy Bellows_Server') {
             id = '28931_Ciara_Bootsy Bellows_Server';
-          } else if (id === '_Raine_Poppy_Server') {
+          } else if (id === '18931_Raine_Poppy_Server') {
             id = '28931_Ciara_Poppy_Server';
           } else if (id === '_Brooke_Poppy_Server') {
             id = '14870_Brooke_Poppy_Server';
@@ -1380,7 +1380,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
-              if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'Owners') {
+              if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'Owners' || payment.type === 'Ticketmaster') {
                 airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1924,16 +1924,38 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
   let converted_airtable_data: any[] = [];
   let sql_str = 'INSERT INTO reports (airtable_id, employee, midday, week_beginning, day, reg_hours, ot_hours, dot_hours, total_hours,'
-    + 'exceptions_pay, total_pay, cash_tips, card_tips, autograt, point, over_point, reason, total_tips, service_charge, final_tips, location) VALUES';
+    + 'exceptions_pay, total_pay, cash_tips, card_tips, autograt, point, over_point, reason, total_tips, service_charge, final_tips, location,'
+    + 'role, category) VALUES';
 
   for (let key of Object.keys(airtable_data)) {
     let employee_id = key.slice(11);
     let row = airtable_data[key];
+    let category = 'FOH';
+    switch (row['Role Name']) {
+      case 'Chef de Cuisine':
+      case 'Dishwasher':
+      case 'Executive Chef':
+      case 'Executive Sous Chef':
+      case 'Line Cook':
+      case 'Pastry Prep Cook':
+      case 'Porter':
+      case 'Prep Cook':
+      case 'Sous Chef':
+      case 'Sushi Chef':
+      case 'Sushi Cook':
+        category = 'BOH';
+        break;
+      case 'Security Lead':
+      case 'Security':
+        category = 'Security';
+        break;
+      default:
+    }
     if (airtable_employees[employee_id] && (row['Total Pay'] || row['Service Charge'] || row['Total Tips'] || row['Final Tips'])) {
       sql_str += `($$${key}$$, $$${employee_id}$$, $$${row['Midday'] || ''}$$, $$${row['Week Beginning']}$$, $$${row['Day']}$$,`
         + `${row['Reg Hours']},${row['OT Hours']},${row['DOT Hours']},${row['Total Hours']},${row['Exceptions Pay']},${row['Total Pay']},`
         + `${row['Cash Tips']},${row['Card Tips']},${row['AutoGrat']},${row['Point']},${row['Override Point']},$$${row['Reason'] || ''}$$,`
-        + `${row['Total Tips']},${row['Service Charge']},${row['Final Tips']},$$${row['Location']}$$),`;
+        + `${row['Total Tips']},${row['Service Charge']},${row['Final Tips']},$$${row['Location']}$$,$$${row['Role Name']}$$,$$${category}$$),`;
       delete row['Role Name'];
       delete row['Location'];
       converted_airtable_data = [...converted_airtable_data, {
@@ -2343,12 +2365,16 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
 
 });
 
-export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule('0 9 * * *').onRun(async (context) => {
+export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(async (req, response) => {
 
   let now = new Date();
 
-  let fromDate = new Date(now.getTime() - 3 * 24 * 3600000).toISOString().split('T')[0];
-  let toDate = now.toISOString().split('T')[0];
+  let { fromDate, toDate } = req.query;
+  if (!fromDate) {
+    fromDate = new Date(now.getTime() - 3 * 24 * 3600000).toISOString().split('T')[0];
+    toDate = now.toISOString().split('T')[0];
+  }
+
   // }
   try {
     console.log(`Data Import From Upserve To PG Server: From ${fromDate} To ${toDate}`);
@@ -2528,11 +2554,11 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).pubsub.schedule(
     }
 
     console.log('Success');
-    return null;
+    response.status(200).send('Success');
 
   } catch (e) {
     console.error(e);
-    return null;
+    response.status(500).send(e);
   }
 
 });
