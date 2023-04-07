@@ -1377,6 +1377,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             for (let payment of check.payments) {
               if (payment.type === 'Cash') {
                 if (check.trading_day_id === '0fdef4ea-3d9d-4fe4-8900-fb49f0ba2511' && check.employee_id === '38521f27-cd2a-41bc-af70-74828f9e789c') continue;
+                if (payment.id === 'be43ce02-2dc6-406b-aba9-e7477d2636b3') {
+                  payment.tip_amount = 146.00;
+                }
+                if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
+                  payment.tip_amount = 50.00;
+                }
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1451,17 +1457,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
         }
 
-        // Exceptional Service Charge
+        // Exceptional Service Charge Or Tips
         if (trading_day.date === '2023-01-10' && acc.location === 'The Peppermint Club') {
           event.tips += 75;
           airtable_data['2023-01-10_14701_Alexandria_The Peppermint Club_Bartender']['Service Charge'] = 75;
         }
-        // Exceptional Service Charge
         if (trading_day.date === '2023-01-23' && acc.location === 'Bird Streets Club') {
           serverPool.tips += 50;
           airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
         }
-        // Exceptional Service Charge
         if (acc.location === 'Delilah' && additional_data[trading_day.date]) {
           bartenderPool.tips += additional_data[trading_day.date];
         }
@@ -1485,13 +1489,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             let total_hours = 0, regular_hours = 0, ot_hours = 0, dot_hours = 0, compliance_exceptions_pay = 0, total_pay = 0;
             let total_hours_point = 0;
             const shifts = user.weeks.reduce((res: any[], week: any) => res = [...res, ...week.shifts], []);
-            let hourly_wage = shifts.find((shift: any) => shift.role_id === role.role_id && role.location_label === shift.location_label).wage;
             let midday;
             for (let shift of shifts.filter((sh: any) =>
               sh.location_label === acc.location && getRoleName(sh.role_label) === getRoleName(role.role_label) && sh.date.split(" ")[0] === trading_day.date)) {
               total_hours += Math.round(shift.total.total_hours * 100) / 100;
               regular_hours += Math.round(shift.total.regular_hours * 100) / 100;
-              ot_hours += Math.round(shift.total.overtime_hours * 100) / 100;
+              ot_hours += Math.round(shift.total.non_premium_overtime_hours * 100) / 100;
+              dot_hours += Math.round(shift.total.premium_overtime_hours * 100) / 100;
               compliance_exceptions_pay += Math.round(shift.total.compliance_exceptions_pay * 100) / 100;
               total_pay += Math.round(shift.total.total_pay * 100) / 100;
               if (!shift.role_label.includes('Event')) {
@@ -1499,15 +1503,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               }
               midday = acc.type === 'nightclub1' ? Number(shift.date.slice(11, 13)) < 14 ? 'am' : 'pm' : null
             }
-            let over_hours = regular_hours > 8 ? regular_hours - 8 : 0;
-            regular_hours -= over_hours;
-            ot_hours += over_hours;
-            if (ot_hours > 4 && regular_hours === 8) {
-              dot_hours = ot_hours - 4;
-            } else if (ot_hours > 8 && regular_hours < 8) {
-              dot_hours = ot_hours - 8;
-            }
-            ot_hours -= dot_hours;
 
             let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : role.role_label;
             role_name = getRoleName(role_name);
@@ -1562,7 +1557,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data[airtable_id]["DOT Hours"] = Math.round(dot_hours * 100) / 100;
             airtable_data[airtable_id]["Total Hours"] = Math.round(total_hours * 100) / 100;
             airtable_data[airtable_id]["Exceptions Pay"] = Math.round(compliance_exceptions_pay * 100) / 100;
-            airtable_data[airtable_id]["Total Pay"] = Math.round((total_pay + dot_hours * hourly_wage * 0.5) * 100) / 100;
+            airtable_data[airtable_id]["Total Pay"] = Math.round(total_pay * 100) / 100;
 
             let daily_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
             if (midday === 'am') {
@@ -1758,6 +1753,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         if (acc.location === 'Delilah' && trading_day.date === '2023-02-25') {
           serverPool.tips -= 1000;
           bartenderPool.tips += 1000;
+        }
+
+        if (trading_day.date === '2023-03-29' && acc.location === 'Bootsy Bellows') {
+          bartenderPool.tips += 300;
+          airtable_data['2023-03-29_11480_Saxon_Bootsy Bellows_Bartender']['Total Tips'] += 300;
         }
 
         let temp_tips = 0, temp_tips_pm = 0;
@@ -2370,9 +2370,11 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
   let now = new Date();
 
   let { fromDate, toDate } = req.query;
+  let updated_after = '';
   if (!fromDate) {
     fromDate = new Date(now.getTime() - 3 * 24 * 3600000).toISOString().split('T')[0];
     toDate = now.toISOString().split('T')[0];
+    updated_after = new Date(now.getTime() - 48 * 3600000).toISOString();
   }
 
   // }
@@ -2450,7 +2452,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
 
       // Import Checks
       let checks: any[] = await getUpsertAPIResponse(
-        `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate}&status=closed&updated_after=${new Date(now.getTime() - 24 * 3600000).toISOString()}`,
+        `https://api.breadcrumb.com/ws/v2/checks.json?start_date=${fromDate}&end_date=${toDate}&status=closed&updated_after=${updated_after}`,
         acc.user,
         acc.password,
         0
