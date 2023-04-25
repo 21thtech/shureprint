@@ -1030,7 +1030,7 @@ const getEmployeeData = () => {
     let airtable_employees: any = {};
     base('Employees').select({
       fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Reg Rate"],
-      maxRecords: 1000,
+      maxRecords: 2000,
       view: "Primary"
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
@@ -1040,7 +1040,7 @@ const getEmployeeData = () => {
 
     }, function done(err: any) {
       if (err) { console.error(err); resolve(null); }
-      console.log('Get Airtable Employees');
+      console.log(`Get ${Object.keys(airtable_employees).length} Airtable Employees`);
       resolve(airtable_employees);
     });
   })
@@ -1312,25 +1312,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '13068_Jose_Petite Taqueria_Bartender';
           } else if (id === '_Freddie_Petite Taqueria_Bartender') {
             id = '12857_Freddie_Petite Taqueria_Bartender';
-          } else if (role_name === 'Admin' && acc.location === 'Petite Taqueria') {
-            id = '17642_Marco_Petite Taqueria_Bartender';
-            role_name = 'Bartender';
-          } else if ((role_name === 'Manager' || role_name === 'Events') && acc.location === 'Bird Streets Club') {
-            id = '11246_Michael_Bird Streets Club_Server';
-            role_name = 'Server';
-          } else if ((role_name === 'Manager' || role_name === 'Events') && acc.location === 'The Nice Guy') {
-            id = '10196_Jason_The Nice Guy_Server';
-            role_name = 'Server';
-          } else if (role_name === 'Manager' && acc.location === 'Delilah') {
-            id = '11967_Demi_Delilah_Server';
-            role_name = 'Server';
-          } else if (role_name === 'Manager' && acc.location === 'The Peppermint Club') {
-            id = '12495_Denvre_The Peppermint Club_Server';
-            role_name = 'Server';
-          } else if (role_name === 'Manager' && acc.location === 'SHOREbar') {
-            id = '14695_Matthew_SHOREbar_Bartender';
-            role_name = 'Bartender';
-          } else if (id === '_Nate_Delilah_Bartender') {
+          }  else if (id === '_Nate_Delilah_Bartender') {
             id = '14211_Nate_Delilah_Bartender';
           } else if (id === '_Jordan_Delilah_Bartender') {
             id = '14581_Jordan_Delilah_Bartender';
@@ -1338,6 +1320,27 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '14428_Jean Paul_Delilah_Bartender';
           } else if (id === '_Jordan_The Peppermint Club_Bartender') {
             id = '14581_Jordan_The Peppermint Club_Bartender';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Petite Taqueria') {
+            id = '17642_Marco_Petite Taqueria_Bartender';
+            role_name = 'Bartender';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Bird Streets Club') {
+            id = '11246_Michael_Bird Streets Club_Server';
+            role_name = 'Server';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Bootsy Bellows') {
+            id = '28931_Ciara_Bootsy Bellows_Server';
+            role_name = 'Server';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'The Nice Guy') {
+            id = '10196_Jason_The Nice Guy_Server';
+            role_name = 'Server';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Delilah') {
+            id = '11967_Demi_Delilah_Server';
+            role_name = 'Server';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'The Peppermint Club') {
+            id = '12495_Denvre_The Peppermint Club_Server';
+            role_name = 'Server';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'SHOREbar') {
+            id = '14695_Matthew_SHOREbar_Bartender';
+            role_name = 'Bartender';
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
@@ -1510,6 +1513,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             if (trading_day.date === '2023-01-04' && acc.location === 'Poppy' && user.user['employee_id'] == '18463') {
               role_name = 'TSA'
             }
+            if (trading_day.date === '2023-04-22' && acc.location === 'SHOREbar' && user.user['employee_id'] == '31782') {
+              role_name = 'Barback'
+            }
             if (trading_day.date >= '2023-01-25' && trading_day.date <= '2023-01-29' && trading_day.date !== '2023-01-28' && user.user['employee_id'] == '15224' && acc.location === 'The Peppermint Club') {
               role_name = 'Barback';
             }
@@ -1552,12 +1558,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               airtable_data[airtable_id]['Midday'] = midday;
             }
 
-            airtable_data[airtable_id]["Reg Hours"] = Math.round(regular_hours * 100) / 100;
-            airtable_data[airtable_id]["OT Hours"] = Math.round(ot_hours * 100) / 100;
-            airtable_data[airtable_id]["DOT Hours"] = Math.round(dot_hours * 100) / 100;
-            airtable_data[airtable_id]["Total Hours"] = Math.round(total_hours * 100) / 100;
-            airtable_data[airtable_id]["Exceptions Pay"] = Math.round(compliance_exceptions_pay * 100) / 100;
-            airtable_data[airtable_id]["Total Pay"] = Math.round(total_pay * 100) / 100;
+            airtable_data[airtable_id]["Reg Hours"] += Math.round(regular_hours * 100) / 100;
+            airtable_data[airtable_id]["OT Hours"] += Math.round(ot_hours * 100) / 100;
+            airtable_data[airtable_id]["DOT Hours"] += Math.round(dot_hours * 100) / 100;
+            airtable_data[airtable_id]["Total Hours"] += Math.round(total_hours * 100) / 100;
+            airtable_data[airtable_id]["Exceptions Pay"] += Math.round(compliance_exceptions_pay * 100) / 100;
+            airtable_data[airtable_id]["Total Pay"] += Math.round(total_pay * 100) / 100;
 
             let daily_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
             if (midday === 'am') {
@@ -1743,7 +1749,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 airtable_data[airtable_id]['Reason'] = overpoint_data[airtable_id]['reason'];
 
               } else {
-                airtable_data[airtable_id]['Point'] = pts;
+                airtable_data[airtable_id]['Point'] += pts;
               }
 
             }
@@ -1966,6 +1972,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           ]
         }
       }];
+    } else {
+      console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId(), row['Total Pay'], row['Final Tips']);
     }
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
@@ -2090,7 +2098,7 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
   }
 })
 
-export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 9 * * *').onRun(async (context) => {
+export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 6 * * *').onRun(async (context) => {
   const now = new Date();
   const yesterday = new Date(Date.now() - 24 * 3600000);
   const fromDate = getMonday(yesterday, 1);
@@ -2300,8 +2308,34 @@ export const listenFromWebhook = functions.runWith(runtimeOpts).https.onRequest(
   } else {
     try {
       console.log(req.body);
+      let punch = req.body;
+
+      if (punch.approved) {
+        let sql_str = `INSERT INTO punches VALUES (${punch.id}, ${punch.company_id}, ${punch.shift_id}, ${punch.user_id}, ${punch.editable_punch}, ` +
+          `${punch.role_id}, ${punch.location_id}, ${punch.department_id}, ${punch.hourly_wage}, ${punch.approved}, $$${punch.clocked_in}$$, ` +
+          `$$${punch.clocked_out || ''}$$, $$${punch.notes}$$, ${punch.auto_clocked_out}, ${punch.clocked_in_offline}, ${punch.clocked_out_offline}, ` +
+          `${punch.tips}, $$${punch.created}$$, $$${punch.modified}$$, ${punch.deleted}, $$${punch.pos_type}$$, $$${punch.clocked_in_iso}$$, $$${punch.clocked_out_iso || ''}$$) ` +
+          `ON CONFLICT(id) DO UPDATE SET id=EXCLUDED.id, company_id=EXCLUDED.company_id, shift_id=EXCLUDED.shift_id, user_id=EXCLUDED.user_id, editable_punch=EXCLUDED.editable_punch, ` +
+          `role_id=EXCLUDED.role_id, location_id=EXCLUDED.location_id, department_id=EXCLUDED.department_id, hourly_wage=EXCLUDED.hourly_wage, approved=EXCLUDED.approved, clocked_in=EXCLUDED.clocked_in, ` +
+          `clocked_out=EXCLUDED.clocked_out, notes=EXCLUDED.notes, auto_clocked_out=EXCLUDED.auto_clocked_out, clocked_in_offline=EXCLUDED.clocked_in_offline, clocked_out_offline=EXCLUDED.clocked_out_offline, ` +
+          `tips=EXCLUDED.tips, created=EXCLUDED.created, modified=EXCLUDED.modified, deleted=EXCLUDED.deleted, pos_type=EXCLUDED.pos_type, clocked_in_iso=EXCLUDED.clocked_in_iso, clocked_out_iso=EXCLUDED.clocked_out_iso;`;
+        await db.query(sql_str, []);
+
+        for (let time_punch_break of punch.time_punch_breaks) {
+          if (!time_punch_break.out) continue;
+          sql_str = `INSERT INTO time_punch_breaks VALUES (${time_punch_break.id}, ${time_punch_break.user_id}, ${time_punch_break.custom_break_id}, ` +
+            `${time_punch_break.paid}, $$${time_punch_break.in}$$, $$${time_punch_break.out}$$, $$${time_punch_break.in_iso}$$, ` +
+            `$$${time_punch_break.out_iso}$$, ${time_punch_break.deleted}, ${punch.id}) ` +
+            `ON CONFLICT(id) DO UPDATE SET id=EXCLUDED.id, user_id=EXCLUDED.user_id, custom_break_id=EXCLUDED.custom_break_id, ` +
+            `paid=EXCLUDED.paid, "in"=EXCLUDED.in, "out"=EXCLUDED.out, in_iso=EXCLUDED.in_iso, out_iso=EXCLUDED.out_iso, ` +
+            `deleted=EXCLUDED.deleted, punch_id=EXCLUDED.punch_id;`;
+          await db.query(sql_str, []);
+        }
+      }
+
       response.status(200).send('Success');
     } catch (e) {
+      console.error(e);
       response.status(500).send(e);
     }
 
@@ -2364,6 +2398,66 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
   }
 
 });
+
+
+export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('0 * * * *').onRun(async (context) => {
+
+  let purchaseOrderItems: any[] = [];
+  let count = 200, start = 1;
+  while (count == 200) {
+    const options = {
+      method: 'GET',
+      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3600000).toISOString()}`,
+      headers: {
+        Accept: 'application/json',
+        Authorization: `Bearer ${SOS_TOKEN}`
+      }
+    };
+
+    let res: any = await doRequest(options);
+    console.log(`Got SOS Purchase Orders ${res.count}`);
+    count = res.count;
+    start += 200;
+    for (let order of res.data) {
+      for (let orderItem of order.lines) {
+        purchaseOrderItems = [...purchaseOrderItems, {
+          id: orderItem.id,
+          order_id: order.id,
+          order_number: order.number,
+          supplier: order.vendor,
+          product: orderItem.item.id,
+          date: order.date,
+          quantity: orderItem.quantity,
+          received: orderItem.received,
+          unitprice: orderItem.unitprice,
+          amount: orderItem.amount
+        }]
+      }
+    }
+  }
+  console.log(`Total Order Items: ${purchaseOrderItems.length}`);
+  // Create SOS Items on Airtable
+  while (purchaseOrderItems.length > 0) {
+    const sosItemCreateWebHook = {
+      method: 'POST',
+      url: `https://hooks.airtable.com/workflows/v1/genericWebhook/appKWq1KHqzZeJ3uF/wfleoPeyilI9b25Av/wtrmXPU9h2eUIc9ml`,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept: 'application/json',
+      },
+      form: {
+        data: JSON.stringify(purchaseOrderItems.slice(0, 200))
+      }
+    };
+    let webhook_res: any = await doRequest(sosItemCreateWebHook);
+    purchaseOrderItems = purchaseOrderItems.slice(200);
+    console.log(`Create SOS Purchase Order Item webhook results: `, webhook_res);
+    console.log(`Remaining Items: `, purchaseOrderItems.length);
+
+  }
+
+});
+
 
 export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(async (req, response) => {
 
@@ -2441,7 +2535,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
       // if (locationId && acc.location_id !== locationId) continue;
       // Import Items
       let items: any[] = await getUpsertAPIResponse(
-        `https://api.breadcrumb.com/ws/v2/items.json?`,
+        `https://api.breadcrumb.com/ws/v2/items.json?status=active`,
         acc.user,
         acc.password,
         0
