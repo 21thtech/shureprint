@@ -1312,7 +1312,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '13068_Jose_Petite Taqueria_Bartender';
           } else if (id === '_Freddie_Petite Taqueria_Bartender') {
             id = '12857_Freddie_Petite Taqueria_Bartender';
-          }  else if (id === '_Nate_Delilah_Bartender') {
+          } else if (id === '_Nate_Delilah_Bartender') {
             id = '14211_Nate_Delilah_Bartender';
           } else if (id === '_Jordan_Delilah_Bartender') {
             id = '14581_Jordan_Delilah_Bartender';
@@ -1428,6 +1428,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             service_charges = check.items.filter((item: any) => (item.name === "Service Charge" || item.name === "NYE Service Charge" || item.name === "Automatic Gratuity") && Number(item.price) > 6)
               .reduce((sum: number, item: any) => sum += Number(item.price), 0);
             if (acc.location === 'The Peppermint Club' && (trading_day.date === '2022-12-15' || trading_day.date === '2022-12-17')) {
+              service_charges = 0;
+            } else if (acc.location === 'Bootsy Bellows' && trading_day.date === '2023-04-19') {
               service_charges = 0;
             }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
@@ -1564,6 +1566,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data[airtable_id]["Total Hours"] += Math.round(total_hours * 100) / 100;
             airtable_data[airtable_id]["Exceptions Pay"] += Math.round(compliance_exceptions_pay * 100) / 100;
             airtable_data[airtable_id]["Total Pay"] += Math.round(total_pay * 100) / 100;
+
+            if (airtable_id === '2023-04-19_11480_Saxon_Bootsy Bellows_Bartender' || airtable_id === '2023-04-19_18463_Jair_Bootsy Bellows_Barback') {
+              continue;
+            }
 
             let daily_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
             if (midday === 'am') {
@@ -1920,6 +1926,17 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
           airtable_data[id]['Final Tips'] = final_tips;
         }
+
+        if (trading_day.date === '2023-04-19' && acc.location === 'Bootsy Bellows') {
+          // Exceptional Event Tip Distribution
+          airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Point'] = 1;
+          airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Final Tips'] += 500;
+          airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Point'] = 0.5;
+          airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Final Tips'] += 250;
+          airtable_data['2023-04-19_17642_Marco_Bootsy Bellows_Bartender']['Final Tips'] += 500;
+          airtable_data['2023-04-19_13233_Christine_Bootsy Bellows_Server']['Final Tips'] += 500;
+          airtable_data['2023-04-19_28931_Ciara_Bootsy Bellows_Server']['Service Charge'] = 1750;
+        }
       }
       console.log("Getting Tips: ", acc.location);
     } catch (err) {
@@ -1973,7 +1990,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         }
       }];
     } else {
-      console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId(), row['Total Pay'], row['Final Tips']);
+      console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Pay'], row['Final Tips']);
     }
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
@@ -2365,7 +2382,9 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
         salesOrderItems = [...salesOrderItems, {
           id: orderItem.id,
           order_id: order.id,
-          product: orderItem.item.id,
+          order_number: order.number,
+          customer: order.customer,
+          product: orderItem.item,
           date: order.date,
           quantity: orderItem.quantity,
           shipped: orderItem.shipped,
@@ -2463,7 +2482,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
 
   let now = new Date();
 
-  let { fromDate, toDate } = req.query;
+  let { fromDate, toDate, locationId } = req.query;
   let updated_after = '';
   if (!fromDate) {
     fromDate = new Date(now.getTime() - 3 * 24 * 3600000).toISOString().split('T')[0];
@@ -2532,7 +2551,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
 
       let acc = locations[loc];
       if (!acc.user) continue;
-      // if (locationId && acc.location_id !== locationId) continue;
+      if (locationId && acc.location_id !== locationId) continue;
       // Import Items
       let items: any[] = await getUpsertAPIResponse(
         `https://api.breadcrumb.com/ws/v2/items.json?status=active`,
