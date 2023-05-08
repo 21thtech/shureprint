@@ -1429,7 +1429,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               .reduce((sum: number, item: any) => sum += Number(item.price), 0);
             if (acc.location === 'The Peppermint Club' && (trading_day.date === '2022-12-15' || trading_day.date === '2022-12-17')) {
               service_charges = 0;
-            } else if (acc.location === 'Bootsy Bellows' && trading_day.date === '2023-04-19') {
+            } else if (acc.location === 'Bootsy Bellows' && (trading_day.date === '2023-04-19' || trading_day.date === '2023-04-29')) {
               service_charges = 0;
             }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
@@ -1567,7 +1567,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data[airtable_id]["Exceptions Pay"] += Math.round(compliance_exceptions_pay * 100) / 100;
             airtable_data[airtable_id]["Total Pay"] += Math.round(total_pay * 100) / 100;
 
-            if (airtable_id === '2023-04-19_11480_Saxon_Bootsy Bellows_Bartender' || airtable_id === '2023-04-19_18463_Jair_Bootsy Bellows_Barback') {
+            if (airtable_id === '2023-04-19_11480_Saxon_Bootsy Bellows_Bartender' ||
+              airtable_id === '2023-04-19_18463_Jair_Bootsy Bellows_Barback' ||
+              airtable_id === '2023-04-29_12637_Kelly_Bootsy Bellows_Bartender' ||
+              airtable_id === '2023-04-29_21073_Adam_Bootsy Bellows_TSA' ||
+              airtable_id === '2023-04-29_16011_Feliciano_Bootsy Bellows_TSA' ||
+              airtable_id === '2023-04-29_17745_Jorge_Bootsy Bellows_TSA' ||
+              airtable_id === '2023-04-29_18463_Jair_Bootsy Bellows_TSA') {
               continue;
             }
 
@@ -1936,6 +1942,23 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-04-19_17642_Marco_Bootsy Bellows_Bartender']['Final Tips'] += 500;
           airtable_data['2023-04-19_13233_Christine_Bootsy Bellows_Server']['Final Tips'] += 500;
           airtable_data['2023-04-19_28931_Ciara_Bootsy Bellows_Server']['Service Charge'] = 1750;
+        } else if (trading_day.date === '2023-04-29' && acc.location === 'Bootsy Bellows') {
+          // Exceptional Event Tip Distribution
+          airtable_data['2023-04-29_12857_Freddie_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Point'] = 1;
+          airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Point'] = 1;
+          airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Point'] = 1;
+          airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Point'] = 1;
+          airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+          airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Point'] = 1;
+          airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Final Tips'] += 199.8;
+          airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Point'] = 0.5;
+          airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Service Charge'] = 2997;
         }
       }
       console.log("Getting Tips: ", acc.location);
@@ -1989,8 +2012,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           ]
         }
       }];
-    } else {
-      console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Pay'], row['Final Tips']);
+    // } else {
+    //   console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Pay'], row['Final Tips']);
     }
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
@@ -2366,7 +2389,7 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3660000).toISOString()}`,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${SOS_TOKEN}`
@@ -2426,7 +2449,8 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3660000).toISOString()}`,
+      // url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}`,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${SOS_TOKEN}`
@@ -2439,6 +2463,7 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
     start += 200;
     for (let order of res.data) {
       for (let orderItem of order.lines) {
+        if (!orderItem.item) continue;
         purchaseOrderItems = [...purchaseOrderItems, {
           id: orderItem.id,
           order_id: order.id,
@@ -2449,7 +2474,8 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
           quantity: orderItem.quantity,
           received: orderItem.received,
           unitprice: orderItem.unitprice,
-          amount: orderItem.amount
+          amount: orderItem.amount,
+          status: order.closed
         }]
       }
     }
