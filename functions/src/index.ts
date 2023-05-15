@@ -29,7 +29,7 @@ const logoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAw4AAABNCAYAAA
 const company_id = 223218;
 const ACCESS_TOKEN = "30646533633736342d323230332d343430632d393233322d396362363937613565643731";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
-const SOS_TOKEN = "qBHLLcyqam0hziNPA58cjeLQknGaLxnoUeH-X9ve23atvMEXeo78knorfiWU9ak6UzlSmrxMrS0f4lsC5GBZLu67Up0oDwDXurPrEEuisMCWy4C5lt44fxiuzIc5QhH288oEOCCU98OrsBzF5HF2SwFHEWpwKFWMxIaZzqXd_FamKdx--n4P7oZ-AQ1mF4GuNAUt4JHTcAtqutHdvt5CGR1eL0dSUXpjIU1fCq3F8IntQ5YtKrWvn4QYSH_wBwUncnPxCMkMttQC5GnZ2p9EVJPQa50yZfGPeTfUb9_Nx7U8lQkT";
+const SOS_TOKEN = "ki4phNF_2s21G419qPF3sQSqx6QzmUGlowyIUk4h9rSrHjBIOJGILTKm5TkbXO_VwMGuDo-rIpc8eV3lNJcjElQA8ofjDC5wZhobnekMbe8q2IVDy0MrKTYJeRxLkZpcSAPJtMZSuWHVPhSErouQo9eEeTCLivtfTF9Qy0vXJDKJmK3SLl1jYIYTGoPkL4IF9T1kodVFWxia_eHqDIhVx67fDGarM4iYTHadAekr-8Zweg7UgiPU8d3MLVGiSQbJWJoh5I9-FJspa-iJAvYiYwNd8zuoEjl90BV6V_nfzU4EYXyF";
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
@@ -1389,7 +1389,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
-              if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'Owners' || payment.type === 'Ticketmaster') {
+              if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'House Account'
+                || payment.type === 'Owners' || payment.type === 'Ticketmaster' || payment.type === 'Deposit' || payment.type === 'Delivery Account') {
                 airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1480,6 +1481,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
+
+          // On 05/07, The Nice Guy, need to be split amongst the cooking employees
+          if (trading_day.date === '2023-05-07' && acc.location === 'The Nice Guy') {
+            event.tips -= 33.88;
+          }
         }
         if (event.tips_pm > 0) {
           console.log(`Event Tips PM: ${event.tips_pm}`);
@@ -1959,6 +1965,14 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Final Tips'] += 199.8;
           airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Point'] = 0.5;
           airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Service Charge'] = 2997;
+        } else if (trading_day.date === '2023-05-07' && acc.location === 'The Nice Guy') {
+          airtable_data['2023-05-07_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+          airtable_data['2023-05-07_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+          airtable_data['2023-05-07_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+          airtable_data['2023-05-07_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+          airtable_data['2023-05-07_12107_Pascual_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
+          airtable_data['2023-05-07_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
+          airtable_data['2023-05-07_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.84;
         }
       }
       console.log("Getting Tips: ", acc.location);
@@ -2012,8 +2026,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           ]
         }
       }];
-    // } else {
-    //   console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Pay'], row['Final Tips']);
+      // } else {
+      //   console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Pay'], row['Final Tips']);
     }
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
@@ -2503,6 +2517,49 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
 
 });
 
+export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest(async (req, response) => {
+
+  try {
+    let { locationId } = req.query;
+    // GET Items From PGTable
+    const pg_items = await db.query("SELECT item_id from items;", []);
+    const pg_items_ids: string[] = pg_items.rows.map((item: any) => item.item_id);
+    console.log('Got Items From PGTable : ' + pg_items_ids.length);
+
+    let new_items: any[] = [];
+    for (let loc of Object.keys(locations)) {
+      let acc = locations[loc];
+      if (!acc.user) continue;
+      if (locationId && acc.location_id !== locationId) continue;
+      // Import Items
+      let items: any[] = await getUpsertAPIResponse(
+        `https://api.breadcrumb.com/ws/v2/items.json?status=active`,
+        acc.user,
+        acc.password,
+        0
+      );
+
+      console.log('Got Items For ', loc);
+      new_items = [...new_items, ...items.filter(item => pg_items_ids.indexOf(item.item_id) < 0).map((item: any) => ({ ...item, location: loc }))];
+
+      if (new_items.length) {
+        console.log(`New Items ${new_items.length} To PostgreSQL`);
+        let sql_str = new_items.reduce((sql, item, index) => {
+          return sql + `($$${item.item_id}$$,$$${item.name}$$,${item.price},$$${item.category}$$,$$${item.status}$$,$$${item.tax}$$,`
+            + `$$${item.item_type}$$,$$${item.description || ''}$$,$$${item.location}$$)` + (index < (new_items.length - 1) ? ', ' : ';');
+        }, 'INSERT INTO Items (item_id, name, price, category, status, tax, item_type, description, location) VALUES');
+        await db.query(sql_str, []);
+      }
+    }
+
+    console.log('Success');
+    response.status(200).send('Success');
+
+  } catch (e) {
+    console.error(e);
+    response.status(500).send(e);
+  }
+});
 
 export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(async (req, response) => {
 
@@ -2513,7 +2570,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
   if (!fromDate) {
     fromDate = new Date(now.getTime() - 3 * 24 * 3600000).toISOString().split('T')[0];
     toDate = now.toISOString().split('T')[0];
-    updated_after = new Date(now.getTime() - 48 * 3600000).toISOString();
+    updated_after = new Date(now.getTime() - 25 * 3600000).toISOString();
   }
 
   // }
@@ -2524,10 +2581,6 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
     const pg_employees_ids: string[] = pg_employees.rows.map((emp: any) => emp.airtable_id);
     console.log('Got Employees From PGTable : ' + pg_employees_ids.length);
 
-    // GET Items From PGTable
-    const pg_items = await db.query("SELECT item_id from items;", []);
-    const pg_items_ids: string[] = pg_items.rows.map((item: any) => item.item_id);
-    console.log('Got Items From PGTable : ' + pg_items_ids.length);
 
     // GET Checks From PGTable
     const pg_checks = await db.query("SELECT id from checks;", []);
@@ -2568,7 +2621,6 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
     }
     console.log(`Add ${new_employees.length} Employees To PostgreSQL`);
 
-    let new_items: any[] = [];
     let new_checks: any[] = [];
     let new_payments: any[] = [];
     let new_check_items: any[] = [];
@@ -2578,16 +2630,6 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
       let acc = locations[loc];
       if (!acc.user) continue;
       if (locationId && acc.location_id !== locationId) continue;
-      // Import Items
-      let items: any[] = await getUpsertAPIResponse(
-        `https://api.breadcrumb.com/ws/v2/items.json?status=active`,
-        acc.user,
-        acc.password,
-        0
-      );
-
-      console.log('Got Items For ', loc);
-      new_items = [...new_items, ...items.filter(item => pg_items_ids.indexOf(item.item_id) < 0).map((item: any) => ({ ...item, location: loc }))];
 
       // Import Checks
       let checks: any[] = await getUpsertAPIResponse(
@@ -2640,15 +2682,6 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
           }))];
         }
       }
-    }
-
-    if (new_items.length) {
-      console.log(`New Items ${new_items.length} To PostgreSQL`);
-      let sql_str = new_items.reduce((sql, item, index) => {
-        return sql + `($$${item.item_id}$$,$$${item.name}$$,${item.price},$$${item.category}$$,$$${item.status}$$,$$${item.tax}$$,`
-          + `$$${item.item_type}$$,$$${item.description || ''}$$,$$${item.location}$$)` + (index < (new_items.length - 1) ? ', ' : ';');
-      }, 'INSERT INTO Items (item_id, name, price, category, status, tax, item_type, description, location) VALUES');
-      await db.query(sql_str, []);
     }
 
     if (new_checks.length) {
