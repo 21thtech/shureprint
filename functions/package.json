@@ -20,6 +20,7 @@
     "html-pdf": "^2.2.0",
     "json-2-csv": "^3.17.1",
     "node-mailjet": "^5.1.1",
+    "pdfkit-table": "^0.1.99",
     "pg": "^8.9.0",
     "request": "^2.88.2"
   },

@@ -1,5 +1,6 @@
 import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
+const PDFDocument = require("pdfkit-table");
 const pdf = require("html-pdf");
 const request = require('request').defaults({ encoding: null });
 admin.initializeApp();
@@ -870,6 +871,126 @@ export const generateReturnDoc = functions.runWith(runtimeOpts).https.onRequest(
   }
 });
 
+
+export const generateOrderGuide = functions.runWith(runtimeOpts).https.onRequest(async (req: any, response: any) => {
+  response.set('Access-Control-Allow-Origin', '*');
+  response.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+  response.set('Access-Control-Allow-Headers', '*');
+
+  if (['OPTIONS', 'GET', 'PUT'].indexOf(req.method) > - 1) {
+    response.status(405).send('Method Not Allowed');
+  } else {
+    try {
+      const body = JSON.parse(req.body);
+      const doc = new PDFDocument({ margins: { left: 30, right: 30, top: 80, bottom: 30 }, size: 'A4', layout: "landscape", bufferPages: true });
+      let file = admin.storage().bucket().file(`order_guides/order_guides_${body.ref}.pdf`);
+      const writeStream = file.createWriteStream({
+        resumable: false,
+        contentType: "application/pdf",
+      });
+      writeStream.on("finish", () => {
+        console.log('Finish WriteStream');
+        file.getSignedUrl({
+          version: "v4",
+          action: "read",
+          expires: Date.now() + 24 * 60 * 60 * 1000,
+        }, function (err, url) {
+          if (err) {
+            console.error(err);
+            response.status(500).send('error while signing document');
+            return;
+          } else {
+            response.status(200).send(url);
+          }
+        });
+      });
+      writeStream.on("error", (e) => {
+        console.error(e.message);
+        response.status(500).send('error creating document');
+      });
+
+      doc.pipe(writeStream);
+
+      // table
+      const table = {
+        headers: [
+          { label: "Item Name", property: 'item_name', width: 280, valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Pack No.\n(Size/Unit)", property: 'size', width: 60, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Par Level\n(Low | High)", property: 'low_high', width: 80, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Sunday\n(I | II)", property: 'sunday', width: 50, align: "center", valign: "center", headerColor: 'grey', headerAlign: "center", backgroundColor: 'grey', renderer: null },
+          { label: "Monday\n(I | II)", property: 'monday', width: 50, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Tuesday\n(I | II)", property: 'tuesday', width: 50, align: "center", valign: "center", headerColor: 'grey', headerAlign: "center", backgroundColor: 'grey', renderer: null },
+          { label: "Wednesday\n(I | II)", property: 'wednesday', width: 50, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Thursday\n(I | II)", property: 'thursday', width: 50, align: "center", valign: "center", headerColor: 'grey', headerAlign: "center", backgroundColor: 'grey', renderer: null },
+          { label: "Friday\n(I | II)", property: 'friday', width: 50, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Saturday\n(I | II)", property: 'saturday', width: 50, align: "center", valign: "center", headerColor: 'grey', headerAlign: "center", backgroundColor: 'grey', renderer: null },
+        ],
+        // complex data
+        datas: body.datas
+      };
+      // the magic
+      doc.table(table, {
+        padding: 3,
+        prepareHeader: () => doc.font("Courier-Bold").fontSize(8),
+        prepareRow: (row: any, indexColumn: number, indexRow: any, rectRow: any, rectCell: any) => {
+          const { x, y, width, height } = rectCell;
+
+          // first line 
+          if (indexColumn === 0) {
+            doc
+              .lineWidth(.2)
+              .moveTo(x, y)
+              .lineTo(x, y + height)
+              .stroke();
+          }
+
+          if (indexColumn > 1) {
+            doc
+              .lineWidth(.1)
+              .moveTo(x + width / 2, y + 3)
+              .lineTo(x + width / 2, y + height - 3);
+          }
+
+          doc
+            .lineWidth(.2)
+            .moveTo(x + width, y)
+            .lineTo(x + width, y + height)
+            .stroke();
+          doc.font("Courier").fontSize(8)
+        }
+      });
+      // done!
+
+      let pages = doc.bufferedPageRange();
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
+        console.log(`Switch to page ${i}`);
+
+        //Header: Add page number
+        let oldTopMargin = doc.page.margins.top;
+        doc.page.margins.top = 0 //Dumb: Have to remove top margin in order to write into it
+        doc.image(logoBase64, 30, 50, { width: 200 });
+        doc.font("Courier-Bold").fontSize(18).text('Order Guide', 650, 40, { align: 'right', width: 150, lineBreak: false });
+        doc.font("Courier").fontSize(8).text(`(I - On Hand, II - Order)`, 650, 65, {align: 'right', width: 150, lineBreak: false});
+        doc.page.margins.top = oldTopMargin; // ReProtect top margin
+
+        //Footer: Add page number
+        let oldBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0 //Dumb: Have to remove bottom margin in order to write into it
+        doc.font("Courier").fontSize(8);
+        doc.text(`Page: ${i + 1} of ${pages.count}`, 0, doc.page.height - oldBottomMargin, { align: 'center' }
+        );
+        doc.page.margins.bottom = oldBottomMargin; // ReProtect bottom margin
+      }
+      console.log('Doc Done!');
+      doc.end()
+    } catch (err: any) {
+      console.log(err.message);
+      response.status(500).send('error getting content');
+    }
+  }
+});
+
 export const getBase64FromUrl = functions.https.onRequest((req: any, res: any) => {
   request.get(req.query.url, function (err: any, response: any, body: any) {
     if (!err && res.statusCode == 200) {
@@ -1407,6 +1528,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             if (acc.type === 'nightclub1') {
               service_charges = check.items.filter((item: any) => item.name === 'Service Fee').reduce((sum: number, item: any) => sum += Number(item.price), 0);
               airtable_data[airtable_id]['Service Charge'] += service_charges;
+              if (check.zone === 'Sushi Bar') {
+                let temp_service_charges = Math.round(service_charges * 10) / 100;
+                sushiPool.tips += temp_service_charges;
+                service_charges -= temp_service_charges;
+              }
               switch (role_name) {
                 case 'Server': { //Server pool
                   if (acc.type === 'nightclub1' && midday === 'pm') {
@@ -1784,6 +1910,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-03-29_11480_Saxon_Bootsy Bellows_Bartender']['Total Tips'] += 300;
         }
 
+        if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
+          bartenderPool.tips -= 29.67;
+        }
+
         let temp_tips = 0, temp_tips_pm = 0;
         if (acc.type == 'restaurant') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
@@ -1805,20 +1935,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             bartenderPool.service_charge_pm += tmp_tips;
           }
 
-          let additional_tips = Math.round(0.05 * ((event.tips > 0 ? 0 : serverPool.service_charge + bartenderPool.service_charge) + (event.tips_pm > 0 ? 0 : serverPool.service_charge_pm + bartenderPool.service_charge_pm)) * 100) / 100;
-          bohPool.tips = additional_tips;
-          if (trading_day.date !== '2023-01-24' && sushiPool.pts !== 0) {
-            sushiPool.tips += additional_tips;
-            serverPool.tips += serverPool.service_charge * 0.9;
-            serverPool.tips_pm += serverPool.service_charge_pm * 0.9;
-            bartenderPool.tips += bartenderPool.service_charge * 0.9;
-            bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.9;
-          } else {
-            serverPool.tips += serverPool.service_charge * 0.95;
-            serverPool.tips_pm += serverPool.service_charge_pm * 0.95;
-            bartenderPool.tips += bartenderPool.service_charge * 0.95;
-            bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.95;
-          }
+          bohPool.tips = Math.round(0.15 * ((event.tips > 0 ? 0 : serverPool.service_charge + bartenderPool.service_charge) + (event.tips_pm > 0 ? 0 : serverPool.service_charge_pm + bartenderPool.service_charge_pm)) * 100) / 100;
+          serverPool.tips += serverPool.service_charge * 0.85;
+          serverPool.tips_pm += serverPool.service_charge_pm * 0.85;
+          bartenderPool.tips += bartenderPool.service_charge * 0.85;
+          bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.85;
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
           temp_tips_pm = bartenderPool.pts_pm > 0 ? Math.round(0.15 * serverPool.tips_pm * 100) / 100 : 0;
         }
@@ -1924,13 +2045,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Pastry Prep Cook':
               case 'Porter': {
                 if (acc.type === 'nightclub1') {
-                  final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                  final_tips = Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                 }
                 break;
               }
               case 'Sushi Cook': {
                 if (acc.type === 'nightclub1') {
-                  final_tips = Math.round(sushiPool.tips * point / sushiPool.pts * 100) / 100;
+                  final_tips = Math.round(sushiPool.tips * point / sushiPool.pts * 100) / 100 + Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                 }
                 break;
               }
@@ -1973,6 +2094,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-05-07_12107_Pascual_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
           airtable_data['2023-05-07_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
           airtable_data['2023-05-07_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.84;
+        } else if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
+          airtable_data['2023-05-11_200025_James_SHOREbar_Support']['Final Tips'] += 29.67;
         }
       }
       console.log("Getting Tips: ", acc.location);
