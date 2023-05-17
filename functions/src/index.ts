@@ -1529,7 +1529,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               service_charges = check.items.filter((item: any) => item.name === 'Service Fee').reduce((sum: number, item: any) => sum += Number(item.price), 0);
               airtable_data[airtable_id]['Service Charge'] += service_charges;
               if (check.zone === 'Sushi Bar') {
-                let temp_service_charges = Math.round(service_charges * 10) / 100;
+                let temp_service_charges = Math.round(service_charges * 50) / 100;
                 sushiPool.tips += temp_service_charges;
                 service_charges -= temp_service_charges;
               }
