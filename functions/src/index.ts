@@ -971,7 +971,7 @@ export const generateOrderGuide = functions.runWith(runtimeOpts).https.onRequest
         doc.page.margins.top = 0 //Dumb: Have to remove top margin in order to write into it
         doc.image(logoBase64, 30, 50, { width: 200 });
         doc.font("Courier-Bold").fontSize(18).text('Order Guide', 650, 40, { align: 'right', width: 150, lineBreak: false });
-        doc.font("Courier").fontSize(8).text(`(I - On Hand, II - Order)`, 650, 65, {align: 'right', width: 150, lineBreak: false});
+        doc.font("Courier").fontSize(8).text(`(I - On Hand, II - Order)`, 650, 65, { align: 'right', width: 150, lineBreak: false });
         doc.page.margins.top = oldTopMargin; // ReProtect top margin
 
         //Footer: Add page number
@@ -1900,18 +1900,17 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
         }
 
+        // Exceptional Tip Dist
         if (acc.location === 'Delilah' && trading_day.date === '2023-02-25') {
           serverPool.tips -= 1000;
           bartenderPool.tips += 1000;
-        }
-
-        if (trading_day.date === '2023-03-29' && acc.location === 'Bootsy Bellows') {
+        } else if (trading_day.date === '2023-03-29' && acc.location === 'Bootsy Bellows') {
           bartenderPool.tips += 300;
           airtable_data['2023-03-29_11480_Saxon_Bootsy Bellows_Bartender']['Total Tips'] += 300;
-        }
-
-        if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
+        } else if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
           bartenderPool.tips -= 29.67;
+        } else if (trading_day.date === '2023-05-18' && acc.location === 'The Nice Guy') {
+          event.tips -= 45;
         }
 
         let temp_tips = 0, temp_tips_pm = 0;
@@ -1942,6 +1941,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.85;
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
           temp_tips_pm = bartenderPool.pts_pm > 0 ? Math.round(0.15 * serverPool.tips_pm * 100) / 100 : 0;
+
+          // For the day with no sushi cook, their tips goes to Boh pool
+          if (!sushiPool.pts) {
+            bohPool.tips += sushiPool.tips;
+          }
         }
         bartenderPool.tips += temp_tips;
         serverPool.tips -= temp_tips + busserRunnerPool.tips + receptionHostPool.tips;
@@ -2096,6 +2100,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-05-07_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.84;
         } else if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
           airtable_data['2023-05-11_200025_James_SHOREbar_Support']['Final Tips'] += 29.67;
+        } else if (trading_day.date === '2023-05-18' && acc.location === 'The Nice Guy') {
+          airtable_data['2023-05-18_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
+          airtable_data['2023-05-18_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
         }
       }
       console.log("Getting Tips: ", acc.location);
