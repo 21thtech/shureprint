@@ -991,6 +991,113 @@ export const generateOrderGuide = functions.runWith(runtimeOpts).https.onRequest
   }
 });
 
+
+export const generateSalesReportForCustomer = functions.runWith(runtimeOpts).https.onRequest(async (req: any, response: any) => {
+  response.set('Access-Control-Allow-Origin', '*');
+  response.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+  response.set('Access-Control-Allow-Headers', '*');
+
+  if (['OPTIONS', 'GET', 'PUT'].indexOf(req.method) > - 1) {
+    response.status(405).send('Method Not Allowed');
+  } else {
+    try {
+      const body = JSON.parse(req.body);
+      const doc = new PDFDocument({ margins: { left: 30, right: 30, top: 90, bottom: 30 }, size: 'A4', bufferPages: true });
+      let file = admin.storage().bucket().file(`sales_reports/sales_report_${body.customer}.pdf`);
+      const writeStream = file.createWriteStream({
+        resumable: false,
+        contentType: "application/pdf",
+      });
+      writeStream.on("finish", () => {
+        console.log('Finish WriteStream');
+        file.getSignedUrl({
+          version: "v4",
+          action: "read",
+          expires: Date.now() + 24 * 60 * 60 * 1000,
+        }, function (err, url) {
+          if (err) {
+            console.error(err);
+            response.status(500).send('error while signing document');
+            return;
+          } else {
+            response.status(200).send(url);
+          }
+        });
+      });
+      writeStream.on("error", (e) => {
+        console.error(e.message);
+        response.status(500).send('error creating document');
+      });
+
+      doc.pipe(writeStream);
+
+      // table
+      const table = {
+        headers: [
+          { label: "No", property: 'index', width: 30, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Item Name", property: 'item_name', width: 370, valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "SKU", property: 'style_code', width: 80, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+          { label: "Shipped", property: 'shipped', width: 50, align: "center", valign: "center", headerColor: 'white', headerAlign: "center", renderer: null },
+        ],
+        // complex data
+        datas: body.datas
+      };
+      // the magic
+      doc.table(table, {
+        padding: 3,
+        prepareHeader: () => doc.font("Courier-Bold").fontSize(8),
+        prepareRow: (row: any, indexColumn: number, indexRow: any, rectRow: any, rectCell: any) => {
+          const { x, y, width, height } = rectCell;
+
+          // first line 
+          if (indexColumn === 0) {
+            doc
+              .lineWidth(.2)
+              .moveTo(x, y)
+              .lineTo(x, y + height)
+              .stroke();
+          }
+
+          doc
+            .lineWidth(.2)
+            .moveTo(x + width, y)
+            .lineTo(x + width, y + height)
+            .stroke();
+          doc.font("Courier").fontSize(8)
+        }
+      });
+      // done!
+
+      let pages = doc.bufferedPageRange();
+      for (let i = 0; i < pages.count; i++) {
+        doc.switchToPage(i);
+        console.log(`Switch to page ${i}`);
+
+        //Header: Add page number
+        let oldTopMargin = doc.page.margins.top;
+        doc.page.margins.top = 0 //Dumb: Have to remove top margin in order to write into it
+        doc.image(logoBase64, 30, 40, { width: 200 });
+        doc.font("Courier-Bold").fontSize(18).text('Sales Report', 400, 50, { align: 'right', width: 150, lineBreak: false });
+        doc.font("Courier-Bold").fontSize(8).text(`Customer: ${body.customer}  From: ${body.start} To: ${body.end}`, 30, 75, { align: 'left', width: 500, lineBreak: false });
+        doc.page.margins.top = oldTopMargin; // ReProtect top margin
+
+        //Footer: Add page number
+        let oldBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0 //Dumb: Have to remove bottom margin in order to write into it
+        doc.font("Courier").fontSize(8);
+        doc.text(`Page: ${i + 1} of ${pages.count}`, 0, doc.page.height - oldBottomMargin, { align: 'center' }
+        );
+        doc.page.margins.bottom = oldBottomMargin; // ReProtect bottom margin
+      }
+      console.log('Doc Done!');
+      doc.end()
+    } catch (err: any) {
+      console.log(err.message);
+      response.status(500).send('error getting content');
+    }
+  }
+});
+
 export const getBase64FromUrl = functions.https.onRequest((req: any, res: any) => {
   request.get(req.query.url, function (err: any, response: any, body: any) {
     if (!err && res.statusCode == 200) {
@@ -1560,6 +1667,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               service_charges = 0;
             }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
+
+            // Exception Event Date For BSC
+            if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-05-23') {
+              serverPool.service_charge += service_charges;
+              service_charges = 0;
+            }
+
             if (midday === 'pm') {
               event.tips_pm += service_charges;
             } else {
@@ -1598,8 +1712,22 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           serverPool.tips += 50;
           airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
         }
+        if (trading_day.date === '2023-06-03' && acc.location === 'The Peppermint Club') {
+          serverPool.tips += 31.36;
+          airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Cash Tips'] += 31.36;
+          airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Total Tips'] += 31.36;
+        }
         if (acc.location === 'Delilah' && additional_data[trading_day.date]) {
           bartenderPool.tips += additional_data[trading_day.date];
+        }
+        if (trading_day.date === '2023-06-03' && acc.location === 'Delilah') {
+          serverPool.tips += 10;
+          airtable_data['2023-06-03_15806_Landon_Delilah_Server']['Cash Tips'] += 10;
+          airtable_data['2023-06-03_15806_Landon_Delilah_Server']['Total Tips'] += 10;
+        } else if (trading_day.date === '2023-06-04' && acc.location === 'Delilah') {
+          serverPool.tips += 10;
+          airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Cash Tips'] += 10;
+          airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Total Tips'] += 10;
         }
 
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
@@ -1611,6 +1739,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           // On 05/07, The Nice Guy, need to be split amongst the cooking employees
           if (trading_day.date === '2023-05-07' && acc.location === 'The Nice Guy') {
             event.tips -= 33.88;
+          } else if (trading_day.date === '2023-05-29' && acc.location === 'The Nice Guy') {
+            event.tips -= 315;
+          } else if (trading_day.date === '2023-06-03' && acc.location === 'The Nice Guy') {
+            event.tips -= 45;
           }
         }
         if (event.tips_pm > 0) {
@@ -1911,6 +2043,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           bartenderPool.tips -= 29.67;
         } else if (trading_day.date === '2023-05-18' && acc.location === 'The Nice Guy') {
           event.tips -= 45;
+        } else if (trading_day.date === '2023-05-25' && acc.location === 'The Peppermint Club') {
+          serverPool.tips += 100;
+          airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Cash Tips'] += 100;
+          airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Total Tips'] += 100;
         }
 
         let temp_tips = 0, temp_tips_pm = 0;
@@ -2109,6 +2245,31 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-05-18_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
           airtable_data['2023-05-18_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
           airtable_data['2023-05-18_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
+        } else if (trading_day.date === '2023-05-25' && acc.location === 'SHOREbar') {
+          airtable_data['2023-05-25_200023_Alexis_SHOREbar_Server']['Final Tips'] += 29.97;
+        } else if (trading_day.date === '2023-05-29' && acc.location === 'The Nice Guy') {
+          airtable_data['2023-05-29_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
+          airtable_data['2023-05-29_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
+        } else if (trading_day.date === '2023-06-03' && acc.location === 'The Nice Guy') {
+          airtable_data['2023-06-03_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+          airtable_data['2023-06-03_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.5;
         }
       }
       console.log("Getting Tips: ", acc.location);
