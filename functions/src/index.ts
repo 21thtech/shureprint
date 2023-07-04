@@ -322,7 +322,7 @@ const useQuoteHTML = (body: any) => {
 
       .text-subheader {
         padding-left: 10px;
-        width: calc(20% - 12px);
+        width: calc(33% - 12px);
         border-left: solid 1px lightgrey;
       }
 
@@ -370,16 +370,8 @@ const useQuoteHTML = (body: any) => {
         ${body.created_by || ''}
       </div>
       <div class="text-subheader">
-        <b>ETD</b><br>
-        ${body.etd || ''}
-      </div>
-      <div class="text-subheader">
         <b>Ref</b><br>
         ${body.ref || ''}
-      </div>
-      <div class="text-subheader">
-        <b>Customer PO No</b><br>
-        ${body.customer_no || ''}
       </div>
     </div>
     <hr>
@@ -1223,7 +1215,27 @@ const locations: any = {
     location: "Nate 'n Al's",
     location_id: "283224",
     full_shift: 6
-  }
+  },
+  // "282512": 
+  "Didi": {
+    r365_code: 602,
+    paycome_code: "0OA79",
+    location: "Didi",
+    user: "michael-green_petite-taqueria",
+    password: "vwLQdp7dNotf",
+    type: "restaurant",
+    location_id: "282512",
+    full_shift: 6
+  },
+  // "317863": 
+  "Slab BBQ Pasadena": {
+    r365_code: 1103,
+    paycome_code: "",
+    location: "Slab BBQ Pasadena",
+    type: "restaurant",
+    location_id: "317863",
+    full_shift: 6
+  },
 }
 
 const getMonday = (d: Date, week: number) => {
@@ -1257,7 +1269,7 @@ const getEmployeeData = () => {
   return new Promise(resolve => {
     let airtable_employees: any = {};
     base('Employees').select({
-      fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Reg Rate"],
+      fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Role Id", "Reg Rate"],
       maxRecords: 2000,
       view: "Primary"
     }).eachPage(function page(records: any[], fetchNextPage: any) {
@@ -1614,6 +1626,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
                   payment.tip_amount = 50.00;
                 }
+                if (payment.id === '978959b9-5908-41a4-88ba-f9209c2727b5') {
+                  payment.tip_amount = 0;
+                }
+                if (payment.id === '131daaf4-0288-41be-9ebc-033bb4a8567c') {
+                  payment.tip_amount = 0;
+                }
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1664,6 +1682,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             if (acc.location === 'The Peppermint Club' && (trading_day.date === '2022-12-15' || trading_day.date === '2022-12-17')) {
               service_charges = 0;
             } else if (acc.location === 'Bootsy Bellows' && (trading_day.date === '2023-04-19' || trading_day.date === '2023-04-29')) {
+              service_charges = 0;
+            } else if (acc.location === 'Delilah' && trading_day.date === '2023-06-08') {
+              service_charges = 0;
+            } else if (acc.location === 'The Nice Guy' && (trading_day.date === '2023-06-15' || trading_day.date === '2023-06-16')) {
               service_charges = 0;
             }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
@@ -1900,6 +1922,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Support':
+                case 'Table Server Assistant':
                 case 'TSA': {
                   if (event.tips > 0 && midday !== 'pm') {
                     if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
@@ -2152,6 +2175,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Support':
+              case 'Table Server Assistant':
               case 'TSA': {
                 if (acc.type === 'restaurant') {
                   final_tips = Math.round(busserRunnerPool.tips * point / busserRunnerPool.pts * 100) / 100;
@@ -2270,6 +2294,44 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-06-03_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
           airtable_data['2023-06-03_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
           airtable_data['2023-06-03_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.5;
+        } else if (trading_day.date === '2023-06-08' && acc.location === 'Delilah') {
+          airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Service Charge'] = 375;
+          airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Cash Tips'] = 986;
+          airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Total Tips'] += 986;
+          airtable_data['2023-06-08_17415_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_17283_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_397999_Eduardo_Delilah_Line Cook']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_398002_Luis_Delilah_Line Cook']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_398027_Reynaldo_Delilah_Line Cook']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_28045_Felix_Delilah_Line Cook']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_17143_Gelma_Delilah_Line Cook']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Final Tips'] += 14.86;
+          airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Service Charge'] += 133.75;
+          airtable_data['2023-06-08_16811_Erin_Delilah_Bartender']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_14018_Patrick_Delilah_Bartender']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_17721_Jaclyn_Delilah_Bartender']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_18594_Mathew_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_11069_Alexander_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_13793_Kelsey_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_11553_Danielle_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_11002_Eduardo A_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_15977_Sarah_Delilah_Server']['Final Tips'] += 80.06;
+          airtable_data['2023-06-08_17016_Bryan_Delilah_Barback']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_18435_Jesus_Delilah_Barback']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_13509_Ricardo_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_397985_Oscar_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_12708_Armando_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_12761_Giovanni_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_11674_Luis_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_14682_Severino_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_17627_Jose Rodrigo_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_12954_Michael_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_15138_Edelmiro_Delilah_Support']['Final Tips'] += 40.03;
+          airtable_data['2023-06-08_10770_Karolina_Delilah_Host']['Final Tips'] += 20.01;
+          airtable_data['2023-06-08_11437_Kat_Delilah_Host']['Final Tips'] += 20.01;
         }
       }
       console.log("Getting Tips: ", acc.location);
@@ -2700,7 +2762,7 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3660000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 4 * 3600000).toISOString()}`,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${SOS_TOKEN}`
@@ -2760,7 +2822,7 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3660000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 4 * 3600000).toISOString()}`,
       // url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}`,
       headers: {
         Accept: 'application/json',
@@ -2910,10 +2972,10 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
       let sql_str = new_employees.reduce((sql, emp, index) => {
         return sql + `($$${emp.get("Identity")}$$,$$${emp.get("Employee ID")}$$,${emp.get("POS ID")},$$${emp.get("First")}$$,$$${emp.get("Last")}$$,`
           + `$$${emp.get("Email")}$$,$$${emp.get("Mobile")}$$,$$${emp.get("Location")}$$,$$${emp.get("Paycom Code")}$$,${emp.get("R365 Code")},`
-          + `$$${emp.get("Role")}$$,${emp.get("Reg Rate")})` + (index < (new_employees.length - 1) ? ', ' : ';');
+          + `$$${emp.get("Role")}$$,${emp.get("Role Id")},${emp.get("Reg Rate")})` + (index < (new_employees.length - 1) ? ', ' : ';');
       }, 'INSERT INTO employees (airtable_id, employee_id, pos_id, first, last, '
       + 'email, mobile, location, paycom_code, r365_code, '
-      + 'role, reg_rate) VALUES ');
+      + 'role, role_id, reg_rate) VALUES ');
       await db.query(sql_str, []);
     }
     console.log(`Add ${new_employees.length} Employees To PostgreSQL`);
