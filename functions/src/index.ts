@@ -1143,16 +1143,16 @@ const locations: any = {
     full_shift: 6
   },
   // "282512": 
-  "Petite Taqueria": {
-    r365_code: 602,
-    paycome_code: "0OA79",
-    location: "Petite Taqueria",
-    user: "michael-green_petite-taqueria",
-    password: "vwLQdp7dNotf",
-    type: "restaurant",
-    location_id: "282512",
-    full_shift: 6
-  },
+  // "Petite Taqueria": {
+  //   r365_code: 602,
+  //   paycome_code: "0OA79",
+  //   location: "Petite Taqueria",
+  //   user: "michael-green_petite-taqueria",
+  //   password: "vwLQdp7dNotf",
+  //   type: "restaurant",
+  //   location_id: "282512",
+  //   full_shift: 6
+  // },
   // "282514": 
   "Poppy": {
     r365_code: 701,
@@ -1221,8 +1221,10 @@ const locations: any = {
     r365_code: 602,
     paycome_code: "0OA79",
     location: "Didi",
-    user: "michael-green_petite-taqueria",
-    password: "vwLQdp7dNotf",
+    // user: "michael-green_petite-taqueria",
+    // password: "vwLQdp7dNotf",
+    user: "upserve_didi",
+    password: "gWHgUVcxpEbs",
     type: "restaurant",
     location_id: "282512",
     full_shift: 6
@@ -1271,7 +1273,7 @@ const getEmployeeData = () => {
     base('Employees').select({
       fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Role Id", "Reg Rate"],
       maxRecords: 2000,
-      view: "Primary"
+      view: "Grid view"
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
         airtable_employees[record.get('Identity')] = record;
@@ -1516,7 +1518,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               user.roles.findIndex((rrl: any) => getRoleName(rl.role_label) === getRoleName(rrl.role_label)) === index
             )) {
               const shifts = user.weeks.reduce((res: any[], week: any) => res = [...res, ...week.shifts], []);
-              let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : role.role_label;
+              let role_name = acc.location === 'Slab BBQ LA' ? (user.user.employee_id === '16439' ? 'Assistant Manager' : 'Server') : role.role_label;
               role_name = getRoleName(role_name);
               let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
               let airtable_id = `${trading_day.date}_${id}`;
@@ -1533,7 +1535,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : check.employee_role_name;
           role_name = getRoleName(role_name);
           let id = `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}_${role_name}`;
-          if (!employee['employee_identifier']) {
+          if (!employee['employee_identifier'] && acc.location !== 'Slab BBQ LA') {
             console.log("XXXXXXXXXXXXXXXXXXX Need to replace Employee ID: ", id);
           }
 
@@ -1545,7 +1547,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if (id === '_Brooke_Poppy_Server') {
             id = '14870_Brooke_Poppy_Server';
           } else if (acc.location === 'Slab BBQ LA') {
-            id = '19874_Alberto_Slab BBQ LA_Server';
+            id = '18971_Pablo_Slab BBQ LA_Server';
           } else if (id === 'null_Ethan_The Peppermint Club_Bartender') {
             id = '13406_Ethan_The Peppermint Club_Bartender';
           } else if (id === '_Jose_Petite Taqueria_Bartender') {
@@ -1560,6 +1562,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '14428_Jean Paul_Delilah_Bartender';
           } else if (id === '_Jordan_The Peppermint Club_Bartender') {
             id = '14581_Jordan_The Peppermint Club_Bartender';
+          } else if (id === '398110_Martel_Didi_Server') {
+            id = '398210_Martel_Didi_Server';
           } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Petite Taqueria') {
             id = '17642_Marco_Petite Taqueria_Bartender';
             role_name = 'Bartender';
@@ -1614,23 +1618,25 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
           }
 
+          if (check.id === 'b6affee6-a9a9-4d45-9985-dffa252be6d9' || check.id === 'af10245e-58b2-49fa-b7b7-63359dc51887') {
+            continue;
+          }
           airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
           total_tips += Number(check.mandatory_tip_amount);
+
           if (check.payments) {
             for (let payment of check.payments) {
               if (payment.type === 'Cash') {
                 if (check.trading_day_id === '0fdef4ea-3d9d-4fe4-8900-fb49f0ba2511' && check.employee_id === '38521f27-cd2a-41bc-af70-74828f9e789c') continue;
+
                 if (payment.id === 'be43ce02-2dc6-406b-aba9-e7477d2636b3') {
                   payment.tip_amount = 146.00;
                 }
                 if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
                   payment.tip_amount = 50.00;
                 }
-                if (payment.id === '978959b9-5908-41a4-88ba-f9209c2727b5') {
-                  payment.tip_amount = 0;
-                }
-                if (payment.id === '131daaf4-0288-41be-9ebc-033bb4a8567c') {
-                  payment.tip_amount = 0;
+                if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5'].indexOf(payment.id) > -1) {
+                  continue;
                 }
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
@@ -1686,6 +1692,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             } else if (acc.location === 'Delilah' && trading_day.date === '2023-06-08') {
               service_charges = 0;
             } else if (acc.location === 'The Nice Guy' && (trading_day.date === '2023-06-15' || trading_day.date === '2023-06-16')) {
+              service_charges = 0;
+            } else if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-07-15') {
               service_charges = 0;
             }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
@@ -1750,11 +1758,36 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           serverPool.tips += 10;
           airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Cash Tips'] += 10;
           airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Total Tips'] += 10;
+        } else if (trading_day.date === '2023-07-03' && acc.location === 'Slab BBQ LA') {
+          serverPool.tips = 266.86;
+          airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 266.86;
+          airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 266.86;
+        } else if (trading_day.date === '2023-07-04' && acc.location === 'Slab BBQ LA') {
+          serverPool.tips = 1296.32;
+          airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 1296.32;
+          airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 1296.32;
+        } else if (trading_day.date === '2023-07-05' && acc.location === 'Slab BBQ LA') {
+          serverPool.tips = 144.96;
+          airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 144.96;
+          airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 144.96;
+        } else if (trading_day.date === '2023-07-07' && acc.location === 'Slab BBQ LA') {
+          serverPool.tips = 238.9;
+          airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 238.9;
+          airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 238.9;
+        } else if (trading_day.date === '2023-07-08' && acc.location === 'Slab BBQ LA') {
+          serverPool.tips = 362.55;
+          airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 362.55;
+          airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 362.55;
+        } else if (trading_day.date === '2023-07-09' && acc.location === 'Slab BBQ LA') {
+          serverPool.tips = 159.33;
+          airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 159.33;
+          airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 159.33;
         }
 
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
           (trading_day.date === '2023-02-23' && acc.location === 'The Peppermint Club') ||
-          (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club')) {
+          (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club') ||
+          (trading_day.date === '2023-07-05' && acc.location === 'Bootsy Bellows')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
 
@@ -1795,7 +1828,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               midday = acc.type === 'nightclub1' ? Number(shift.date.slice(11, 13)) < 14 ? 'am' : 'pm' : null
             }
 
-            let role_name = acc.location === 'Slab BBQ LA' ? 'Server' : role.role_label;
+            let role_name = acc.location === 'Slab BBQ LA' ? (user.user.employee_id === '16439' ? 'Assistant Manager' : 'Server') : role.role_label;
+
             role_name = getRoleName(role_name);
 
             if (trading_day.date === '2023-01-04' && acc.location === 'Poppy' && user.user['employee_id'] == '18463') {
@@ -1859,7 +1893,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               airtable_id === '2023-04-29_21073_Adam_Bootsy Bellows_TSA' ||
               airtable_id === '2023-04-29_16011_Feliciano_Bootsy Bellows_TSA' ||
               airtable_id === '2023-04-29_17745_Jorge_Bootsy Bellows_TSA' ||
-              airtable_id === '2023-04-29_18463_Jair_Bootsy Bellows_TSA') {
+              airtable_id === '2023-04-29_18463_Jair_Bootsy Bellows_TSA' ||
+              id === 'n/a6_Ada_Bootsy Bellows_Barback') {
               continue;
             }
 
@@ -1939,9 +1974,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     if (over_point === 0) break;
                     event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (acc.type == 'restaurant') {
-                    pts = daily_pts;
+                    pts = (0.4 * daily_pts);
                     if (over_point === 0) break;
-                    busserRunnerPool.pts += over_point || daily_pts;
+                    busserRunnerPool.pts += over_point || (0.4 * daily_pts);
                   } else if (acc.type == 'nightclub') {
                     pts = 0.4 * daily_pts;
                     if (over_point === 0) break;
@@ -1969,9 +2004,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     if (over_point === 0) break;
                     event.pts_pm += over_point || (total_hours > 0 ? 0.25 : 0);
                   } else if (acc.type == 'restaurant') {
-                    pts = daily_pts;
+                    pts = 0.1 * daily_pts;
                     if (over_point === 0) break;
-                    receptionHostPool.pts += over_point || daily_pts;
+                    receptionHostPool.pts += over_point || (0.1 * daily_pts);
                   } else if (acc.type === 'nightclub1') {
                     pts = 0.1 * daily_pts;
                     if (over_point === 0) break;
@@ -2070,6 +2105,19 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           serverPool.tips += 100;
           airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Cash Tips'] += 100;
           airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Total Tips'] += 100;
+        } else if (trading_day.date === '2023-07-08' && acc.location === 'The Nice Guy') {
+          event.tips -= 39.36;
+        } else if (trading_day.date === '2023-07-10' && acc.location === 'The Nice Guy') {
+          event.tips += 307.1;
+          airtable_data['2023-07-10_10196_Jason_The Nice Guy_Server']['Service Charge'] += 307.1;
+        } else if (trading_day.date === '2023-07-13' && acc.location === 'SHOREbar') {
+          serverPool.tips += 114.69;
+          airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['AutoGrat'] += 114.69;
+          airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['Total Tips'] += 114.69;
+        } else if (trading_day.date === '2023-07-15' && acc.location === 'Bird Streets Club') {
+          bartenderPool.tips_pm += 750;
+          airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Card Tips'] += 750;
+          airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Total Tips'] += 750;
         }
 
         let temp_tips = 0, temp_tips_pm = 0;
@@ -2332,6 +2380,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data['2023-06-08_15138_Edelmiro_Delilah_Support']['Final Tips'] += 40.03;
           airtable_data['2023-06-08_10770_Karolina_Delilah_Host']['Final Tips'] += 20.01;
           airtable_data['2023-06-08_11437_Kat_Delilah_Host']['Final Tips'] += 20.01;
+        } else if (trading_day.date === '2023-07-08' && acc.location === 'The Nice Guy') {
+          airtable_data['2023-07-08_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
+          airtable_data['2023-07-08_44362_Martin_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
+          airtable_data['2023-07-08_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
+          airtable_data['2023-07-08_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
+          airtable_data['2023-07-08_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
+          airtable_data['2023-07-08_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
         }
       }
       console.log("Getting Tips: ", acc.location);
@@ -2680,9 +2735,6 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
           "Email": "lydia@hwoodgroup.com",
           "Name": "Lydia Saylor",
         }, {
-          "Email": "tharris@hwoodgroup.com",
-          "Name": "Tierra Harris",
-        }, {
           "Email": "aguerrero@hwoodgroup.com",
           "Name": "Ada Guerrero",
         }, {
@@ -2763,6 +2815,7 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
     const options = {
       method: 'GET',
       url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 4 * 3600000).toISOString()}`,
+      // url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed`,
       headers: {
         Accept: 'application/json',
         Authorization: `Bearer ${SOS_TOKEN}`
