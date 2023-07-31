@@ -1225,14 +1225,16 @@ const locations: any = {
     // password: "vwLQdp7dNotf",
     user: "upserve_didi",
     password: "gWHgUVcxpEbs",
-    type: "restaurant",
+    type: "restaurant1",
     location_id: "282512",
     full_shift: 6
   },
   // "317863": 
   "Slab BBQ Pasadena": {
     r365_code: 1103,
-    paycome_code: "",
+    paycome_code: "160390",
+    user: "upserve_slab-la",
+    password: "bfgXiiNuBDzP",
     location: "Slab BBQ Pasadena",
     type: "restaurant",
     location_id: "317863",
@@ -1585,6 +1587,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'SHOREbar') {
             id = '14695_Matthew_SHOREbar_Bartender';
             role_name = 'Bartender';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Didi') {
+            id = '398096_Michael_Didi_Server';
+            role_name = 'Server';
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
@@ -1695,6 +1700,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               service_charges = 0;
             } else if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-07-15') {
               service_charges = 0;
+            } else if (acc.location === 'Didi' && trading_day.date === '2023-07-25') {
+              service_charges = 0;
+            } else if (acc.location === 'SHOREbar') {
+              if (trading_day.date === '2023-07-27') {
+                service_charges = 0;
+              }
             }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
 
@@ -1734,54 +1745,19 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         }
 
         // Exceptional Service Charge Or Tips
-        if (trading_day.date === '2023-01-10' && acc.location === 'The Peppermint Club') {
-          event.tips += 75;
-          airtable_data['2023-01-10_14701_Alexandria_The Peppermint Club_Bartender']['Service Charge'] = 75;
-        }
-        if (trading_day.date === '2023-01-23' && acc.location === 'Bird Streets Club') {
-          serverPool.tips += 50;
-          airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
-        }
-        if (trading_day.date === '2023-06-03' && acc.location === 'The Peppermint Club') {
-          serverPool.tips += 31.36;
-          airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Cash Tips'] += 31.36;
-          airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Total Tips'] += 31.36;
-        }
+
         if (acc.location === 'Delilah' && additional_data[trading_day.date]) {
           bartenderPool.tips += additional_data[trading_day.date];
         }
-        if (trading_day.date === '2023-06-03' && acc.location === 'Delilah') {
-          serverPool.tips += 10;
-          airtable_data['2023-06-03_15806_Landon_Delilah_Server']['Cash Tips'] += 10;
-          airtable_data['2023-06-03_15806_Landon_Delilah_Server']['Total Tips'] += 10;
-        } else if (trading_day.date === '2023-06-04' && acc.location === 'Delilah') {
-          serverPool.tips += 10;
-          airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Cash Tips'] += 10;
-          airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Total Tips'] += 10;
-        } else if (trading_day.date === '2023-07-03' && acc.location === 'Slab BBQ LA') {
-          serverPool.tips = 266.86;
-          airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 266.86;
-          airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 266.86;
-        } else if (trading_day.date === '2023-07-04' && acc.location === 'Slab BBQ LA') {
-          serverPool.tips = 1296.32;
-          airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 1296.32;
-          airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 1296.32;
-        } else if (trading_day.date === '2023-07-05' && acc.location === 'Slab BBQ LA') {
-          serverPool.tips = 144.96;
-          airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 144.96;
-          airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 144.96;
-        } else if (trading_day.date === '2023-07-07' && acc.location === 'Slab BBQ LA') {
-          serverPool.tips = 238.9;
-          airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 238.9;
-          airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 238.9;
-        } else if (trading_day.date === '2023-07-08' && acc.location === 'Slab BBQ LA') {
-          serverPool.tips = 362.55;
-          airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 362.55;
-          airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 362.55;
-        } else if (trading_day.date === '2023-07-09' && acc.location === 'Slab BBQ LA') {
-          serverPool.tips = 159.33;
-          airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 159.33;
-          airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 159.33;
+        if (acc.location === 'The Peppermint Club') {
+          if (trading_day.date === '2023-01-10') {
+            event.tips += 75;
+            airtable_data['2023-01-10_14701_Alexandria_The Peppermint Club_Bartender']['Service Charge'] = 75;
+          } else if (trading_day.date === '2023-06-03') {
+            serverPool.tips += 31.36;
+            airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Cash Tips'] += 31.36;
+            airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Total Tips'] += 31.36;
+          }
         }
 
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
@@ -1911,7 +1887,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
             daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
 
-            if (acc.type == 'restaurant' || acc.type == 'nightclub' || acc.type == 'nightclub1') {
+            if (acc.type == 'restaurant' || acc.type == 'nightclub' || acc.type == 'nightclub1' || acc.type == 'restaurant1') {
               switch (role_name) {
                 case 'Server': { //Server pool
                   if (event.tips > 0 && midday !== 'pm') {
@@ -1926,6 +1902,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = daily_pts;
                     if (over_point === 0) break;
                     serverPool.pts_pm += over_point || daily_pts;
+                  } else if (acc.type === 'restaurant1') {
+                    pts = daily_pts;
+                    if (over_point === 0) break;
+                    serverPool.pts += over_point || daily_pts;
                   } else {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1948,6 +1928,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = daily_pts;
                     if (over_point === 0) break;
                     bartenderPool.pts_pm += over_point || daily_pts;
+                  } else if (acc.type === 'restaurant1') {
+                    pts = daily_pts;
+                    if (over_point === 0) break;
+                    bartenderPool.pts += over_point || daily_pts;
                   } else {
                     pts = daily_pts;
                     if (over_point === 0) break;
@@ -1977,6 +1961,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = (0.4 * daily_pts);
                     if (over_point === 0) break;
                     busserRunnerPool.pts += over_point || (0.4 * daily_pts);
+                  } else if (acc.type == 'restaurant1') {
+                    pts = (0.4 * daily_pts);
+                    if (over_point === 0) break;
+                    serverPool.pts += over_point || (0.4 * daily_pts);
                   } else if (acc.type == 'nightclub') {
                     pts = 0.4 * daily_pts;
                     if (over_point === 0) break;
@@ -1994,6 +1982,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Host':
+                case 'Lead Host':
                 case 'Anchor Host': {
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.25 : 0;
@@ -2007,6 +1996,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = 0.1 * daily_pts;
                     if (over_point === 0) break;
                     receptionHostPool.pts += over_point || (0.1 * daily_pts);
+                  } else if (acc.type == 'restaurant1') {
+                    pts = 0.1 * daily_pts;
+                    if (over_point === 0) break;
+                    serverPool.pts += over_point || (0.1 * daily_pts);
                   } else if (acc.type === 'nightclub1') {
                     pts = 0.1 * daily_pts;
                     if (over_point === 0) break;
@@ -2035,6 +2028,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     } else {
                       bartenderPool.pts += over_point || (0.5 * daily_pts);
                     }
+                  } else if (acc.type === 'restaurant1') {
+                    pts = 0.5 * daily_pts;
+                    if (over_point === 0) break;
+                    bartenderPool.pts += over_point || (0.5 * daily_pts);
                   } else {
                     pts = daily_pts / 2;
                     if (over_point === 0) break;
@@ -2091,33 +2088,98 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         }
 
         // Exceptional Tip Dist
-        if (acc.location === 'Delilah' && trading_day.date === '2023-02-25') {
-          serverPool.tips -= 1000;
-          bartenderPool.tips += 1000;
-        } else if (trading_day.date === '2023-03-29' && acc.location === 'Bootsy Bellows') {
-          bartenderPool.tips += 300;
-          airtable_data['2023-03-29_11480_Saxon_Bootsy Bellows_Bartender']['Total Tips'] += 300;
-        } else if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
-          bartenderPool.tips -= 29.67;
-        } else if (trading_day.date === '2023-05-18' && acc.location === 'The Nice Guy') {
-          event.tips -= 45;
-        } else if (trading_day.date === '2023-05-25' && acc.location === 'The Peppermint Club') {
-          serverPool.tips += 100;
-          airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Cash Tips'] += 100;
-          airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Total Tips'] += 100;
-        } else if (trading_day.date === '2023-07-08' && acc.location === 'The Nice Guy') {
-          event.tips -= 39.36;
-        } else if (trading_day.date === '2023-07-10' && acc.location === 'The Nice Guy') {
-          event.tips += 307.1;
-          airtable_data['2023-07-10_10196_Jason_The Nice Guy_Server']['Service Charge'] += 307.1;
-        } else if (trading_day.date === '2023-07-13' && acc.location === 'SHOREbar') {
-          serverPool.tips += 114.69;
-          airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['AutoGrat'] += 114.69;
-          airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['Total Tips'] += 114.69;
-        } else if (trading_day.date === '2023-07-15' && acc.location === 'Bird Streets Club') {
-          bartenderPool.tips_pm += 750;
-          airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Card Tips'] += 750;
-          airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Total Tips'] += 750;
+        if (acc.location === 'Bird Streets Club') {
+          if (trading_day.date === '2023-01-23') {
+            serverPool.tips += 50;
+            airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
+          } else if (trading_day.date === '2023-07-15') {
+            bartenderPool.tips_pm += 750;
+            airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Card Tips'] += 750;
+            airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Total Tips'] += 750;
+          }
+        }
+        if (acc.location === 'Delilah') {
+          if (trading_day.date === '2023-02-25') {
+            serverPool.tips -= 1000;
+            bartenderPool.tips += 1000;
+          } else if (trading_day.date === '2023-06-03') {
+            serverPool.tips += 10;
+            airtable_data['2023-06-03_15806_Landon_Delilah_Server']['Cash Tips'] += 10;
+            airtable_data['2023-06-03_15806_Landon_Delilah_Server']['Total Tips'] += 10;
+          } else if (trading_day.date === '2023-06-04') {
+            serverPool.tips += 10;
+            airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Cash Tips'] += 10;
+            airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Total Tips'] += 10;
+          }
+        }
+        if (acc.location === 'Slab BBQ LA') {
+          if (trading_day.date === '2023-07-03') {
+            serverPool.tips = 266.86;
+            airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 266.86;
+            airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 266.86;
+          } else if (trading_day.date === '2023-07-04') {
+            serverPool.tips = 1296.32;
+            airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 1296.32;
+            airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 1296.32;
+          } else if (trading_day.date === '2023-07-05') {
+            serverPool.tips = 144.96;
+            airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 144.96;
+            airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 144.96;
+          } else if (trading_day.date === '2023-07-07') {
+            serverPool.tips = 238.9;
+            airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 238.9;
+            airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 238.9;
+          } else if (trading_day.date === '2023-07-08') {
+            serverPool.tips = 362.55;
+            airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 362.55;
+            airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 362.55;
+          } else if (trading_day.date === '2023-07-09') {
+            serverPool.tips = 159.33;
+            airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 159.33;
+            airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 159.33;
+          }
+        }
+        if (acc.location === 'Didi') {
+          if (trading_day.date === '2023-07-24') {
+            serverPool.tips += 76;
+            airtable_data['2023-07-24_398091_Alanna_Didi_Server']['Cash Tips'] += 76;
+            airtable_data['2023-07-24_398091_Alanna_Didi_Server']['Total Tips'] += 76;
+          } else if (trading_day.date === '2023-07-25') {
+            serverPool.tips += 319.60;
+            airtable_data['2023-07-25_398091_Alanna_Didi_Server']['AutoGrat'] += 319.60;
+            airtable_data['2023-07-25_398091_Alanna_Didi_Server']['Total Tips'] += 319.60;
+          }
+        }
+        if (acc.location === 'Bootsy Bellows') {
+          if (trading_day.date === '2023-03-29') {
+            bartenderPool.tips += 300;
+            airtable_data['2023-03-29_11480_Saxon_Bootsy Bellows_Bartender']['Total Tips'] += 300;
+          }
+        }
+        if (acc.location === 'SHOREbar') {
+          if (trading_day.date === '2023-05-11') {
+            bartenderPool.tips -= 29.67;
+          } else if (trading_day.date === '2023-07-13') {
+            serverPool.tips += 114.69;
+            airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['AutoGrat'] += 114.69;
+            airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['Total Tips'] += 114.69;
+          }
+        }
+        if (acc.location === 'The Nice Guy') {
+          if (trading_day.date === '2023-05-18') {
+            event.tips -= 45;
+          } else if (trading_day.date === '2023-07-08') {
+            event.tips -= 39.36;
+          } else if (trading_day.date === '2023-07-13') {
+            event.tips -= 37.28;
+          }
+        }
+        if (acc.location === 'The Peppermint Club') {
+          if (trading_day.date === '2023-05-25') {
+            serverPool.tips += 100;
+            airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Cash Tips'] += 100;
+            airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Total Tips'] += 100;
+          }
         }
 
         let temp_tips = 0, temp_tips_pm = 0;
@@ -2125,6 +2187,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
           busserRunnerPool.tips = busserRunnerPool.pts > 0 ? Math.round(0.285 * serverPool.tips * 100) / 100 : 0;
           receptionHostPool.tips = receptionHostPool.pts > 0 ? Math.round(0.015 * serverPool.tips * 100) / 100 : 0;
+        } else if (acc.type === 'restaurant1') {
+          temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub1') {
@@ -2188,6 +2252,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   } else {
                     final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
                   }
+                } else if (acc.type === 'restaurant1') {
+                  final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
                 } else {
                   final_tips = Math.round(serverPool.tips * (serverPool.count / (serverPool.count + busserRunnerPool.count)) * point / serverPool.pts * 100) / 100;
                 }
@@ -2198,6 +2264,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                 } else if (acc.type === 'nightclub') {
                   final_tips = Math.round(bartenderPool.tips * (barbackPool.count / (bartenderPool.count + barbackPool.count)) * point / barbackPool.pts * 100) / 100;
+                } else if (acc.type === 'restaurant1') {
+                  final_tips = Math.round(bartenderPool.tips * point / bartenderPool.pts * 100) / 100;
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / bartenderPool.pts_pm * 100) / 100;
@@ -2213,6 +2281,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                 } else if (acc.type === 'nightclub') {
                   final_tips = Math.round(bartenderPool.tips * (bartenderPool.count / (bartenderPool.count + barbackPool.count)) * point / bartenderPool.pts * 100) / 100;
+                } else if (acc.type === 'restaurant1') {
+                  final_tips = Math.round(bartenderPool.tips * point / bartenderPool.pts * 100) / 100;
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / bartenderPool.pts_pm * 100) / 100;
@@ -2229,6 +2299,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   final_tips = Math.round(busserRunnerPool.tips * point / busserRunnerPool.pts * 100) / 100;
                 } else if (acc.type === 'nightclub') {
                   final_tips = Math.round(serverPool.tips * (busserRunnerPool.count / (serverPool.count + busserRunnerPool.count)) * point / busserRunnerPool.pts * 100) / 100;
+                } else if (acc.type === 'restaurant1') {
+                  final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(serverPool.tips_pm * point / serverPool.pts_pm * 100) / 100;
@@ -2239,9 +2311,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Host':
+              case 'Lead Host':
               case 'Anchor Host': {
                 if (acc.type === 'restaurant') {
                   final_tips = Math.round(receptionHostPool.tips * point / receptionHostPool.pts * 100) / 100;
+                } else if (acc.type === 'restaurant1') {
+                  final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(serverPool.tips_pm * point / serverPool.pts_pm * 100) / 100;
@@ -2272,121 +2347,145 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           airtable_data[id]['Final Tips'] = final_tips;
         }
 
-        if (trading_day.date === '2023-04-19' && acc.location === 'Bootsy Bellows') {
-          // Exceptional Event Tip Distribution
-          airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Point'] = 1;
-          airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Final Tips'] += 500;
-          airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Point'] = 0.5;
-          airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Final Tips'] += 250;
-          airtable_data['2023-04-19_17642_Marco_Bootsy Bellows_Bartender']['Final Tips'] += 500;
-          airtable_data['2023-04-19_13233_Christine_Bootsy Bellows_Server']['Final Tips'] += 500;
-          airtable_data['2023-04-19_28931_Ciara_Bootsy Bellows_Server']['Service Charge'] = 1750;
-        } else if (trading_day.date === '2023-04-29' && acc.location === 'Bootsy Bellows') {
-          // Exceptional Event Tip Distribution
-          airtable_data['2023-04-29_12857_Freddie_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Point'] = 1;
-          airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Point'] = 1;
-          airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Point'] = 1;
-          airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Point'] = 1;
-          airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-          airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Point'] = 1;
-          airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Final Tips'] += 199.8;
-          airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Point'] = 0.5;
-          airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Service Charge'] = 2997;
-        } else if (trading_day.date === '2023-05-07' && acc.location === 'The Nice Guy') {
-          airtable_data['2023-05-07_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-          airtable_data['2023-05-07_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-          airtable_data['2023-05-07_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-          airtable_data['2023-05-07_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-          airtable_data['2023-05-07_12107_Pascual_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
-          airtable_data['2023-05-07_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
-          airtable_data['2023-05-07_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.84;
-        } else if (trading_day.date === '2023-05-11' && acc.location === 'SHOREbar') {
-          airtable_data['2023-05-11_200025_James_SHOREbar_Support']['Final Tips'] += 29.67;
-        } else if (trading_day.date === '2023-05-18' && acc.location === 'The Nice Guy') {
-          airtable_data['2023-05-18_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
-          airtable_data['2023-05-18_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
-        } else if (trading_day.date === '2023-05-25' && acc.location === 'SHOREbar') {
-          airtable_data['2023-05-25_200023_Alexis_SHOREbar_Server']['Final Tips'] += 29.97;
-        } else if (trading_day.date === '2023-05-29' && acc.location === 'The Nice Guy') {
-          airtable_data['2023-05-29_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
-          airtable_data['2023-05-29_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
-        } else if (trading_day.date === '2023-06-03' && acc.location === 'The Nice Guy') {
-          airtable_data['2023-06-03_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-          airtable_data['2023-06-03_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.5;
-        } else if (trading_day.date === '2023-06-08' && acc.location === 'Delilah') {
-          airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Service Charge'] = 375;
-          airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Cash Tips'] = 986;
-          airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Total Tips'] += 986;
-          airtable_data['2023-06-08_17415_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_17283_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_397999_Eduardo_Delilah_Line Cook']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_398002_Luis_Delilah_Line Cook']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_398027_Reynaldo_Delilah_Line Cook']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_28045_Felix_Delilah_Line Cook']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_17143_Gelma_Delilah_Line Cook']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Final Tips'] += 14.86;
-          airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Service Charge'] += 133.75;
-          airtable_data['2023-06-08_16811_Erin_Delilah_Bartender']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_14018_Patrick_Delilah_Bartender']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_17721_Jaclyn_Delilah_Bartender']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_18594_Mathew_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_11069_Alexander_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_13793_Kelsey_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_11553_Danielle_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_11002_Eduardo A_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_15977_Sarah_Delilah_Server']['Final Tips'] += 80.06;
-          airtable_data['2023-06-08_17016_Bryan_Delilah_Barback']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_18435_Jesus_Delilah_Barback']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_13509_Ricardo_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_397985_Oscar_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_12708_Armando_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_12761_Giovanni_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_11674_Luis_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_14682_Severino_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_17627_Jose Rodrigo_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_12954_Michael_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_15138_Edelmiro_Delilah_Support']['Final Tips'] += 40.03;
-          airtable_data['2023-06-08_10770_Karolina_Delilah_Host']['Final Tips'] += 20.01;
-          airtable_data['2023-06-08_11437_Kat_Delilah_Host']['Final Tips'] += 20.01;
-        } else if (trading_day.date === '2023-07-08' && acc.location === 'The Nice Guy') {
-          airtable_data['2023-07-08_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
-          airtable_data['2023-07-08_44362_Martin_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
-          airtable_data['2023-07-08_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
-          airtable_data['2023-07-08_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
-          airtable_data['2023-07-08_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
-          airtable_data['2023-07-08_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
+        if (acc.location === 'Bootsy Bellows') {
+          if (trading_day.date === '2023-04-19') {
+            // Exceptional Event Tip Distribution
+            airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Point'] = 1;
+            airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Final Tips'] += 500;
+            airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Point'] = 0.5;
+            airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Final Tips'] += 250;
+            airtable_data['2023-04-19_17642_Marco_Bootsy Bellows_Bartender']['Final Tips'] += 500;
+            airtable_data['2023-04-19_13233_Christine_Bootsy Bellows_Server']['Final Tips'] += 500;
+            airtable_data['2023-04-19_28931_Ciara_Bootsy Bellows_Server']['Service Charge'] = 1750;
+          } else if (trading_day.date === '2023-04-29') {
+            // Exceptional Event Tip Distribution
+            airtable_data['2023-04-29_12857_Freddie_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Point'] = 1;
+            airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Point'] = 1;
+            airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Point'] = 1;
+            airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Point'] = 1;
+            airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
+            airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Point'] = 1;
+            airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Final Tips'] += 199.8;
+            airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Point'] = 0.5;
+            airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Service Charge'] = 2997;
+          }
+        } else if (acc.location === 'The Nice Guy') {
+          if (trading_day.date === '2023-05-07') {
+            airtable_data['2023-05-07_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+            airtable_data['2023-05-07_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+            airtable_data['2023-05-07_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+            airtable_data['2023-05-07_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
+            airtable_data['2023-05-07_12107_Pascual_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
+            airtable_data['2023-05-07_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
+            airtable_data['2023-05-07_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.84;
+          } else if (trading_day.date === '2023-05-18') {
+            airtable_data['2023-05-18_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
+            airtable_data['2023-05-18_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
+          } else if (trading_day.date === '2023-05-29') {
+            airtable_data['2023-05-29_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
+            airtable_data['2023-05-29_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
+          } else if (trading_day.date === '2023-06-03') {
+            airtable_data['2023-06-03_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
+            airtable_data['2023-06-03_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.5;
+          } else if (trading_day.date === '2023-07-08') {
+            airtable_data['2023-07-08_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
+            airtable_data['2023-07-08_44362_Martin_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
+            airtable_data['2023-07-08_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
+            airtable_data['2023-07-08_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
+            airtable_data['2023-07-08_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
+            airtable_data['2023-07-08_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
+          } else if (trading_day.date === '2023-07-13') {
+            airtable_data['2023-07-13_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_12888_German_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
+            airtable_data['2023-07-13_398131_Andres_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
+          }
+        } else if (acc.location === 'Delilah') {
+          if (trading_day.date === '2023-06-08') {
+            airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Service Charge'] = 375;
+            airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Cash Tips'] = 986;
+            airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Total Tips'] += 986;
+            airtable_data['2023-06-08_17415_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_17283_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_397999_Eduardo_Delilah_Line Cook']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_398002_Luis_Delilah_Line Cook']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_398027_Reynaldo_Delilah_Line Cook']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_28045_Felix_Delilah_Line Cook']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_17143_Gelma_Delilah_Line Cook']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Final Tips'] += 14.86;
+            airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Service Charge'] += 133.75;
+            airtable_data['2023-06-08_16811_Erin_Delilah_Bartender']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_14018_Patrick_Delilah_Bartender']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_17721_Jaclyn_Delilah_Bartender']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_18594_Mathew_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_11069_Alexander_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_13793_Kelsey_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_11553_Danielle_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_11002_Eduardo A_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_15977_Sarah_Delilah_Server']['Final Tips'] += 80.06;
+            airtable_data['2023-06-08_17016_Bryan_Delilah_Barback']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_18435_Jesus_Delilah_Barback']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_13509_Ricardo_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_397985_Oscar_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_12708_Armando_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_12761_Giovanni_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_11674_Luis_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_14682_Severino_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_17627_Jose Rodrigo_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_12954_Michael_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_15138_Edelmiro_Delilah_Support']['Final Tips'] += 40.03;
+            airtable_data['2023-06-08_10770_Karolina_Delilah_Host']['Final Tips'] += 20.01;
+            airtable_data['2023-06-08_11437_Kat_Delilah_Host']['Final Tips'] += 20.01;
+          }
+        } else if (acc.location === 'SHOREbar') {
+          if (trading_day.date === '2023-05-11') {
+            airtable_data['2023-05-11_200025_James_SHOREbar_Support']['Final Tips'] += 29.67;
+          } else if (trading_day.date === '2023-05-25') {
+            airtable_data['2023-05-25_200023_Alexis_SHOREbar_Server']['Final Tips'] += 29.97;
+          } else if (trading_day.date === '2023-07-27') {
+            airtable_data['2023-07-27_14211_Nate_SHOREbar_Bartender']['Service Charge'] += 570;
+            airtable_data['2023-07-27_200019_Jordan_SHOREbar_Bartender']['Final Tips'] += 228;
+            airtable_data['2023-07-27_14211_Nate_SHOREbar_Bartender']['Final Tips'] += 228;
+            airtable_data['2023-07-27_200018_Andy_SHOREbar_Barback']['Final Tips'] += 114;
+          }
         }
       }
       console.log("Getting Tips: ", acc.location);
@@ -2425,7 +2524,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         break;
       default:
     }
-    if (airtable_employees[employee_id] && (row['Total Pay'] || row['Service Charge'] || row['Total Tips'] || row['Final Tips'])) {
+    if (airtable_employees[employee_id] && (row['Total Hours'] || row['Service Charge'] || row['Total Tips'])) {
       sql_str += `($$${key}$$, $$${employee_id}$$, $$${row['Midday'] || ''}$$, $$${row['Week Beginning']}$$, $$${row['Day']}$$,`
         + `${row['Reg Hours']},${row['OT Hours']},${row['DOT Hours']},${row['Total Hours']},${row['Exceptions Pay']},${row['Total Pay']},`
         + `${row['Cash Tips']},${row['Card Tips']},${row['AutoGrat']},${row['Point']},${row['Override Point']},$$${row['Reason'] || ''}$$,`
