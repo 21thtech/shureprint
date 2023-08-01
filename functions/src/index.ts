@@ -1694,8 +1694,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               service_charges = 0;
             } else if (acc.location === 'Bootsy Bellows' && (trading_day.date === '2023-04-19' || trading_day.date === '2023-04-29')) {
               service_charges = 0;
-            } else if (acc.location === 'Delilah' && trading_day.date === '2023-06-08') {
-              service_charges = 0;
+            } else if (acc.location === 'Delilah') {
+              if (trading_day.date === '2023-06-08') {
+                service_charges = 0;
+              } else if (trading_day.date === '2023-07-27') {
+                service_charges = 0;
+              }
             } else if (acc.location === 'The Nice Guy' && (trading_day.date === '2023-06-15' || trading_day.date === '2023-06-16')) {
               service_charges = 0;
             } else if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-07-15') {
@@ -2110,6 +2114,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             serverPool.tips += 10;
             airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Cash Tips'] += 10;
             airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Total Tips'] += 10;
+          } else if (trading_day.date === '2023-07-24') {
+            event.tips -= 163;
           }
         }
         if (acc.location === 'Slab BBQ LA') {
@@ -2474,6 +2480,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-06-08_15138_Edelmiro_Delilah_Support']['Final Tips'] += 40.03;
             airtable_data['2023-06-08_10770_Karolina_Delilah_Host']['Final Tips'] += 20.01;
             airtable_data['2023-06-08_11437_Kat_Delilah_Host']['Final Tips'] += 20.01;
+          } else if (trading_day.date === '2023-07-24') {
+            airtable_data['2023-07-24_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 40.75;
+            airtable_data['2023-07-24_10214_Elver_Delilah_Dishwasher']['Final Tips'] += 40.75;
+            airtable_data['2023-07-24_398075_Anthony_Delilah_Line Cook']['Final Tips'] += 40.75;
+            airtable_data['2023-07-24_17143_Gelma_Delilah_Prep Cook']['Final Tips'] += 40.75;
           }
         } else if (acc.location === 'SHOREbar') {
           if (trading_day.date === '2023-05-11') {
@@ -3052,17 +3063,17 @@ export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest
 
       console.log('Got Items For ', loc);
       new_items = [...new_items, ...items.filter(item => pg_items_ids.indexOf(item.item_id) < 0).map((item: any) => ({ ...item, location: loc }))];
-
-      if (new_items.length) {
-        console.log(`New Items ${new_items.length} To PostgreSQL`);
-        let sql_str = new_items.reduce((sql, item, index) => {
-          return sql + `($$${item.item_id}$$,$$${item.name}$$,${item.price},$$${item.category}$$,$$${item.status}$$,$$${item.tax}$$,`
-            + `$$${item.item_type}$$,$$${item.description || ''}$$,$$${item.location}$$)` + (index < (new_items.length - 1) ? ', ' : ';');
-        }, 'INSERT INTO Items (item_id, name, price, category, status, tax, item_type, description, location) VALUES');
-        await db.query(sql_str, []);
-      }
     }
 
+    new_items = new_items.filter((item, index) => new_items.findIndex(item1 => item1.item_id === item.item_id) === index);
+    if (new_items.length) {
+      console.log(`New Items ${new_items.length} To PostgreSQL`);
+      let sql_str = new_items.reduce((sql, item, index) => {
+        return sql + `($$${item.item_id}$$,$$${item.name}$$,${item.price},$$${item.category}$$,$$${item.status}$$,$$${item.tax}$$,`
+          + `$$${item.item_type}$$,$$${item.description || ''}$$,$$${item.location}$$)` + (index < (new_items.length - 1) ? ', ' : ';');
+      }, 'INSERT INTO Items (item_id, name, price, category, status, tax, item_type, description, location) VALUES');
+      await db.query(sql_str, []);
+    }
     console.log('Success');
     response.status(200).send('Success');
 
