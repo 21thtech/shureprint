@@ -407,7 +407,8 @@ const useQuoteHTML = (body: any) => {
           <th width="15%" style="text-align: left;">Note</th>
           <th width="5%">Qty</th>
           <th width="10%">Case Qty</th>
-          <th width="10%">Shureprint Price</th>` + (!body.is_stock_quote ? `
+          <th width="10%">Shureprint Price</th>
+          <th width="10%">Unit Price</th>` + (!body.is_stock_quote ? `
           <th width="10%">Lead Time</th>
           <th width="5%">Set Ups</th>` : '') + (body.showPreviousPrice ? `
           <th width="10%">Previous Price</th>
@@ -424,7 +425,8 @@ const useQuoteHTML = (body: any) => {
           <td>${item.desc || ''}</td>
           <td>${item.qty || '0'}</td>
           <td>${item.case_qty || ''}</td>
-          <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>` + (!body.is_stock_quote ? `
+          <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
+          <td>${item.unit_price2 ? ('$' + item.unit_price2.toFixed(2)) : ''}</td>` + (!body.is_stock_quote ? `
           <td>${item.leadTime || ''}</td>
           <td>${item.setups ? ('$' + item.setups.toFixed(2)) : ''}</td>` : '') + (body.showPreviousPrice ? `
           <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
@@ -1233,8 +1235,8 @@ const locations: any = {
   "Slab BBQ Pasadena": {
     r365_code: 1103,
     paycome_code: "160390",
-    user: "upserve_slab-la",
-    password: "bfgXiiNuBDzP",
+    user: "7shifts_slab-pasadena",
+    password: "iRufspmwkGMr",
     location: "Slab BBQ Pasadena",
     type: "restaurant",
     location_id: "317863",
@@ -1767,18 +1769,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
           (trading_day.date === '2023-02-23' && acc.location === 'The Peppermint Club') ||
           (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club') ||
-          (trading_day.date === '2023-07-05' && acc.location === 'Bootsy Bellows')) {
+          (trading_day.date === '2023-07-05' && acc.location === 'Bootsy Bellows') ||
+          (trading_day.date === '2023-08-01' && acc.location === 'Delilah')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
-
-          // On 05/07, The Nice Guy, need to be split amongst the cooking employees
-          if (trading_day.date === '2023-05-07' && acc.location === 'The Nice Guy') {
-            event.tips -= 33.88;
-          } else if (trading_day.date === '2023-05-29' && acc.location === 'The Nice Guy') {
-            event.tips -= 315;
-          } else if (trading_day.date === '2023-06-03' && acc.location === 'The Nice Guy') {
-            event.tips -= 45;
-          }
         }
         if (event.tips_pm > 0) {
           console.log(`Event Tips PM: ${event.tips_pm}`);
@@ -2060,6 +2054,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                       bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     }
                   }
+                  if (acc.location === 'The Nice Guy' && event.tips > 0) {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                  }
                   break;
                 }
                 case 'Sushi Cook': {
@@ -2116,6 +2114,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-06-04_11967_Demi_Delilah_Server']['Total Tips'] += 10;
           } else if (trading_day.date === '2023-07-24') {
             event.tips -= 163;
+          } else if (trading_day.date === '2023-08-03') {
+            bartenderPool.tips += 23;
+            airtable_data['2023-08-03_13607_Anthony_Delilah_Bartender']['Cash Tips'] += 23;
+            airtable_data['2023-08-03_13607_Anthony_Delilah_Bartender']['Total Tips'] += 23;
           }
         }
         if (acc.location === 'Slab BBQ LA') {
@@ -2169,15 +2171,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             serverPool.tips += 114.69;
             airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['AutoGrat'] += 114.69;
             airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['Total Tips'] += 114.69;
-          }
-        }
-        if (acc.location === 'The Nice Guy') {
-          if (trading_day.date === '2023-05-18') {
-            event.tips -= 45;
-          } else if (trading_day.date === '2023-07-08') {
-            event.tips -= 39.36;
-          } else if (trading_day.date === '2023-07-13') {
-            event.tips -= 37.28;
           }
         }
         if (acc.location === 'The Peppermint Club') {
@@ -2246,7 +2239,25 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let point = airtable_data[id]['Point'];
           let final_tips = 0;
           if (event.tips > 0 && midday !== 'pm') {
-            final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+            if (acc.location === 'The Nice Guy') {
+              // Exceptional Case For The Nice Guy
+              switch (role_name) {
+                case 'Line Cook':
+                case 'Prep Cook':
+                case 'Dishwasher':
+                case 'Pastry Prep Cook':
+                case 'Porter': {
+                  final_tips = Math.round(event.tips * 0.01 * point / bohPool.pts * 100) / 100;
+                  break;
+                }
+                default: {
+                  final_tips = Math.round(event.tips * 0.99 * point / event.pts * 100) / 100;
+                }
+              }
+            } else {
+              final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+            }
+
           } else if (event.tips_pm > 0 && midday === 'pm') {
             final_tips = Math.round(event.tips_pm * point / event.pts_pm * 100) / 100;
           } else {
@@ -2380,66 +2391,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Final Tips'] += 199.8;
             airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Point'] = 0.5;
             airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Service Charge'] = 2997;
-          }
-        } else if (acc.location === 'The Nice Guy') {
-          if (trading_day.date === '2023-05-07') {
-            airtable_data['2023-05-07_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-            airtable_data['2023-05-07_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-            airtable_data['2023-05-07_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-            airtable_data['2023-05-07_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.84;
-            airtable_data['2023-05-07_12107_Pascual_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
-            airtable_data['2023-05-07_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.84;
-            airtable_data['2023-05-07_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.84;
-          } else if (trading_day.date === '2023-05-18') {
-            airtable_data['2023-05-18_20916_Hector_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
-            airtable_data['2023-05-18_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 5.625;
-          } else if (trading_day.date === '2023-05-29') {
-            airtable_data['2023-05-29_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_44356_Jaime Amaya_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
-            airtable_data['2023-05-29_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 28.63;
-          } else if (trading_day.date === '2023-06-03') {
-            airtable_data['2023-06-03_44359_Valerie_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_12888_German_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_15399_Josselgm_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] += 4.5;
-            airtable_data['2023-06-03_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] += 4.5;
-          } else if (trading_day.date === '2023-07-08') {
-            airtable_data['2023-07-08_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
-            airtable_data['2023-07-08_44362_Martin_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
-            airtable_data['2023-07-08_44353_Luis_The Nice Guy_Dishwasher']['Final Tips'] = 6.56;
-            airtable_data['2023-07-08_44361_Alejandro_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
-            airtable_data['2023-07-08_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
-            airtable_data['2023-07-08_16603_Odalis_The Nice Guy_Line Cook']['Final Tips'] = 6.56;
-          } else if (trading_day.date === '2023-07-13') {
-            airtable_data['2023-07-13_11122_Rosario_The Nice Guy_Prep Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_14536_Sandra_The Nice Guy_Prep Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_44339_Jorge_The Nice Guy_Dishwasher']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_44354_Manuela_The Nice Guy_Dishwasher']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_17677_Silvia_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_12888_German_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_14215_Julio_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_19887_Maria_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_13761_Norbeto_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
-            airtable_data['2023-07-13_398131_Andres_The Nice Guy_Line Cook']['Final Tips'] = 3.73;
           }
         } else if (acc.location === 'Delilah') {
           if (trading_day.date === '2023-06-08') {
@@ -2854,7 +2805,7 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
           "Email": "LHernandez@hwoodgroup.com",
           "Name": "Lucy Hernandez",
         }, {
-          "Email": "markkostevych111@gmail.com",
+          "Email": "mkostevych@hwoodgroup.com",
           "Name": "Mark Kostevych",
         }],
         "Subject": `Wage & Tip Report For Week ${weekday}`,
@@ -2985,7 +2936,7 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 4 * 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 6 * 3600000).toISOString()}`,
       // url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}`,
       headers: {
         Accept: 'application/json',
@@ -3188,6 +3139,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
           new_checks = [...new_checks, {
             ...check,
             location: loc,
+            comp_total: check.items.reduce((sum: number, item: any) => sum += Number(item.comp_total), 0),
             trading_day: trading_day.date,
             ...(airtable_employees[employee_id] ? { employee: employee_id } : {})
           }];
@@ -3208,18 +3160,22 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
 
     if (new_checks.length) {
       console.log(`New Checks ${new_checks.length} To PostgreSQL`);
+      let duplicates = new_checks.filter((check, index) => new_checks.findIndex(check1 => check1.id === check.id) !== index);
+      if (duplicates.length > 0) {
+        console.log(`Found Some Duplicates Checks: `, duplicates);
+      }
       let sql_str = new_checks.reduce((sql, check, index) => {
         return sql + `($$${check.id}$$,$token$${check.name}$token$,${check.number},$$${check.status}$$,${check.sub_total},${check.tax_total},`
           + `${check.total},${check.mandatory_tip_amount},$$${check.open_time}$$,$$${check.close_time || check.open_time}$$,$$${check.employee_name}$$,`
           + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
           + `$$${check.type}$$,${check.type_id},$$${check.taxed_type}$$,$$${check.table_name || ''}$$,$$${check.location}$$,$$${check.zone || ''}$$,`
           + `${check.autograt_tax},$$${check.trading_day_id}$$,$$${check.trading_day}$$,$$${check.updated_at}$$,`
-          + `${check.non_revenue_total},${check.sub_total - check.non_revenue_total / 100.0},${check.outstanding_balance})` + (index < (new_checks.length - 1) ? ', ' : ';');
+          + `${check.non_revenue_total},${check.sub_total - check.non_revenue_total / 100.0},${check.outstanding_balance}, ${check.comp_total})` + (index < (new_checks.length - 1) ? ', ' : ';');
       }, 'INSERT INTO checks (id, name, number, status, sub_total, tax_total, '
       + 'total, mandatory_tip_amount, open_time, close_time, employee_name, '
       + 'employee_role_name, employee_id, employee, guest_count, '
       + 'type, type_id, taxed_type, table_name, location, zone, autograt_tax, trading_day_id, trading_day, '
-      + 'updated_at, non_revenue_total, revenue_total, outstanding_balance) VALUES ');
+      + 'updated_at, non_revenue_total, revenue_total, outstanding_balance, comp_total) VALUES ');
       await db.query(sql_str, []);
     }
 
