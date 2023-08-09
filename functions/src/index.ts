@@ -492,6 +492,149 @@ const useQuoteHTML = (body: any) => {
   return createdTemplate;
 }
 
+const useOrderGuideHTML = (body: any) => {
+  let createdTemplate = `
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link href='https://fonts.googleapis.com/css?family=Libre Barcode 39' rel='stylesheet'>
+    <style type="text/css">
+      body {
+        font-size: 10px;
+      }
+
+      .d-flex {
+        display: -webkit-box;
+        display: -webkit-flex;
+        -webkit-flex-wrap: wrap;
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+
+      .text-right {
+        text-align: right;
+      }
+
+      .font-normal {
+        font-style: normal;
+      }
+
+      .font-mono {
+        font-family: 'Courier New', Courier, monospace;
+        font-style: normal;
+        text-transform: uppercase;
+      }
+
+      table {
+        font-size: 8.5px;
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th {
+        border-top: solid 1px lightgrey;
+        border-bottom: solid 1px lightgrey;
+        background-color: #f2f2f2;
+      }
+
+      td {
+        padding: 5px;
+        text-align: center;
+      }
+
+      .padding-l-30 {
+        padding-left: 30px;
+      }
+
+      .padding-y-80 {
+        padding: 80px 0;
+      }
+
+      .text-address {
+        font-style: normal;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+
+      .text-header2 {
+        font-size: 18px;
+        font-weight: bold;
+        text-align: center;
+      }
+
+      .text-subheader {
+        padding-left: 10px;
+        width: calc(33% - 12px);
+        border-left: solid 1px lightgrey;
+      }
+
+      .text-barcode {
+        font-family: 'Libre Barcode 39';
+        font-size: 30px;
+        text-align: center;
+      }
+
+      .footer {
+        width: 100%;
+        margin-top: 100px;
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .signature_div {
+        position: relative;
+        width: 200px;
+        border-bottom: 1px solid grey;
+      }
+
+      .signature {
+        position: absolute;
+        width: 100%;
+        top: -55px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="pageHeader">
+      <div class="d-flex">
+        <div style="width: 40%;"><img src="${logoBase64}" width="100%" alt=""></div>
+        <div style="width: 60%; font-size: 15px; font-weight: bold; color: grey; text-align: right;">Order Guide</div>
+      </div>
+    </div>
+    <br>
+    <div class="content">
+      <table>
+      <thead style="display: table-header-group;">
+        <tr>
+          <th width="10%"></th>
+          <th width="20%" style="text-align: left;">Code</th>
+          <th width="30%" style="text-align: left;">Item</th>
+          <th width="20%" style="text-align: left;">Note</th>
+          <th width="20%">Qty</th>
+        </tr></thead><tbody>`;
+  for (let item of body.items) {
+    createdTemplate += `
+        <tr>
+          <td><img src="${item.image_url || ''}" style="width:100%;padding:0;margin:0"></td>
+          <td style="text-align: left;">${item.code || ''}</td>
+          <td style="text-align: left;">${item.name || ''}</td>
+          <td>${item.desc || ''}</td>
+          <td>${item.qty || '0'}</td>
+        </tr>`;
+  }
+  createdTemplate += `
+      </tbody></table>
+      <hr>
+      <div id="pageFooter">
+      </div>
+    </div>
+  </body>`;
+  return createdTemplate;
+}
 
 const useReturnHTML = (body: any) => {
   let createdTemplate = `
@@ -773,8 +916,8 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
     try {
       const body = JSON.parse(req.body);
       console.log(logoBase64);
-      let html = useQuoteHTML(body);
-      let file = admin.storage().bucket().file(`quotes/quote_${body.ref}${body.signature_link ? '_signed' : ''}.pdf`)
+      let html = body.order_guide ? useOrderGuideHTML(body) : useQuoteHTML(body);
+      let file = body.order_guide ? admin.storage().bucket().file(`order_guides/order_guides_${body.ref}.pdf`) : admin.storage().bucket().file(`quotes/quote_${body.ref}${body.signature_link ? '_signed' : ''}.pdf`);
       pdf.create(html, {
         format: "A4",
         zoomFactor: "1",
