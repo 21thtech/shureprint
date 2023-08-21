@@ -30,7 +30,9 @@ const logoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAw4AAABNCAYAAA
 const company_id = 223218;
 const ACCESS_TOKEN = "30646533633736342d323230332d343430632d393233322d396362363937613565643731";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
-const SOS_TOKEN = "ki4phNF_2s21G419qPF3sQSqx6QzmUGlowyIUk4h9rSrHjBIOJGILTKm5TkbXO_VwMGuDo-rIpc8eV3lNJcjElQA8ofjDC5wZhobnekMbe8q2IVDy0MrKTYJeRxLkZpcSAPJtMZSuWHVPhSErouQo9eEeTCLivtfTF9Qy0vXJDKJmK3SLl1jYIYTGoPkL4IF9T1kodVFWxia_eHqDIhVx67fDGarM4iYTHadAekr-8Zweg7UgiPU8d3MLVGiSQbJWJoh5I9-FJspa-iJAvYiYwNd8zuoEjl90BV6V_nfzU4EYXyF";
+// Expire In 11/16
+const SOS_TOKEN = "u3HrboX6V-lUX6f93VHi3tX4HsbKMJWnhGXjcbsnhurRjhtcJn-RwqI-vS5m7ZoyC0B1fp3flCw7cIc9YEHVR4YkaT8ZUynI-K0mYKB2blP3mvp5nbixhIWgB41P6oCAjb29Kxz0Cb5yA1ubKa_qYIbllEGagpTtWMWrzGVegwvZ4phAjg6qyuijN1vNnpoJ5uVZbmLX4opWNzJRlvZJ-K212eFMhE1BycSTnGBZpd-rG6Kr18HhNeE2kU98FSmpCYYlwwSc_zm3RXBKhmLHeVtfsizfD4AZi_svcsU0UXBYjgc8";
+// const SOS_REFRESH_TOKEN = "LO55L0vrxHBadzsSx0lzj19NtC04PczJuV_eQwBUZW3JW62X97AvzqixFoMuDM0e7bey63peBWaMYWJ0HaDKJ3JqhIfla8HRacqrSVJKFB7gXIQymmjGceWrkP8UHwyC5HP6gdMQ0q48-7X9k_Qjf8W0BcTYfbcBEbEsZhy-XfWZ2ZLhzU2oTfci-fNdc7UDs5H-9ohdWJ5R93JFHyPx89thGMU95miymYaNPM7km-jzH-I3gFAtQxQOjVm2scKEJ9KHVcVSGv1WNd43NNra2qtP4HwGHk2nWi87Wlx6BHb9o7n7nafA0ewGOPMN7h0DznbSiA";
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
@@ -407,8 +409,8 @@ const useQuoteHTML = (body: any) => {
           <th width="15%" style="text-align: left;">Note</th>
           <th width="5%">Qty</th>
           <th width="10%">Case Qty</th>
-          <th width="10%">Shureprint Price</th>
-          <th width="10%">Unit Price</th>` + (!body.is_stock_quote ? `
+          <th width="10%">Shureprint Price</th>` + (body.showUnitPrice ? `
+          <th width="10%">Unit Price</th>` : '') + (!body.is_stock_quote ? `
           <th width="10%">Lead Time</th>
           <th width="5%">Set Ups</th>` : '') + (body.showPreviousPrice ? `
           <th width="10%">Previous Price</th>
@@ -425,8 +427,8 @@ const useQuoteHTML = (body: any) => {
           <td>${item.desc || ''}</td>
           <td>${item.qty || '0'}</td>
           <td>${item.case_qty || ''}</td>
-          <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>
-          <td>${item.unit_price2 ? ('$' + item.unit_price2.toFixed(2)) : ''}</td>` + (!body.is_stock_quote ? `
+          <td>$${item.unit_price ? item.unit_price.toFixed(2) : '0.00'}</td>` + (body.showUnitPrice ? `
+          <td>${item.unit_price2 ? ('$' + item.unit_price2.toFixed(2)) : ''}</td>` : '') + (!body.is_stock_quote ? `
           <td>${item.leadTime || ''}</td>
           <td>${item.setups ? ('$' + item.setups.toFixed(2)) : ''}</td>` : '') + (body.showPreviousPrice ? `
           <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
@@ -1785,6 +1787,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
                   payment.tip_amount = 50.00;
                 }
+                if (payment.id === '7fc773e0-e3ae-4941-86d1-0a20f542162e') { // Delilah 08/09 +30$
+                  payment.tip_amount = 30.00;
+                }
+                if (payment.id === 'c981e893-efec-4c37-81e2-325061d7dbff') {// Delilah 08/13 +50$
+                  payment.tip_amount = 50.00;
+                }
+                if (payment.id === '28a81425-41b8-4f46-a039-aa2f803933c8') { // TNG 08/13 +292$
+                  payment.tip_amount = 292.00;
+                }
                 if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5'].indexOf(payment.id) > -1) {
                   continue;
                 }
@@ -1882,6 +1893,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               break;
             }
             case 'Bartender':
+            case 'Lead Bartender':
             case 'Service Bar': { //Bartender pool
               if (acc.type === 'nightclub1' && midday === 'pm') {
                 bartenderPool.tips_pm += total_tips;
@@ -2056,6 +2068,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Bartender':
+                case 'Lead Bartender':
                 case 'Service Bar': { //Bartender pool
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
@@ -2111,6 +2124,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     if (over_point === 0) break;
                     busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
                     busserRunnerPool.pts += over_point || (0.4 * daily_pts);
+                    if (airtable_id === '2023-08-11_200025_James_SHOREbar_Support'
+                      || airtable_id === '2023-08-12_200025_James_SHOREbar_Support'
+                      || airtable_id === '2023-08-19_200025_James_SHOREbar_Support') {
+                      barbackPool.count += 0.5;
+                    }
                   } else if (acc.type === 'nightclub1') {
                     pts = 0.4 * daily_pts;
                     if (over_point === 0) break;
@@ -2436,6 +2454,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Bartender':
+              case 'Lead Bartender':
               case 'Service Bar': { //Bartender pool
                 if (acc.type === 'restaurant') {
                   final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
@@ -2590,6 +2609,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-07-27_200019_Jordan_SHOREbar_Bartender']['Final Tips'] += 228;
             airtable_data['2023-07-27_14211_Nate_SHOREbar_Bartender']['Final Tips'] += 228;
             airtable_data['2023-07-27_200018_Andy_SHOREbar_Barback']['Final Tips'] += 114;
+          } else if (trading_day.date === '2023-08-11') {
+            airtable_data['2023-08-11_200025_James_SHOREbar_Support']['Final Tips'] += 132.35;
+          } else if (trading_day.date === '2023-08-12') {
+            airtable_data['2023-08-12_200025_James_SHOREbar_Support']['Final Tips'] += 135.8;
+          } else if (trading_day.date === '2023-08-19') {
+            airtable_data['2023-08-19_200025_James_SHOREbar_Support']['Final Tips'] += 102.05;
           }
         }
       }
