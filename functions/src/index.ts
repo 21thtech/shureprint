@@ -1873,6 +1873,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-05-23') {
               serverPool.service_charge += service_charges;
               service_charges = 0;
+            } else if (acc.location === 'SHOREbar' && trading_day.date === '2023-08-25') {
+              bartenderPool.tips += service_charges;
+              service_charges = 0;
             }
 
             if (midday === 'pm') {
@@ -1907,8 +1910,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
         // Exceptional Service Charge Or Tips
 
-        if (acc.location === 'Delilah' && additional_data[trading_day.date]) {
-          bartenderPool.tips += additional_data[trading_day.date];
+        if (acc.location === 'Delilah') {
+          if (additional_data[trading_day.date]) {
+            bartenderPool.tips += additional_data[trading_day.date];
+          }
         }
         if (acc.location === 'The Peppermint Club') {
           if (trading_day.date === '2023-01-10') {
@@ -1919,13 +1924,20 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Cash Tips'] += 31.36;
             airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Total Tips'] += 31.36;
           }
+        } else if (acc.location === 'Poppy') {
+          if (trading_day.date === '2023-08-16') {
+            event.tips += 406;
+            airtable_data['2023-08-16_11480_Saxon_Poppy_Bartender']['Service Charge'] = 406;
+          }
         }
 
         if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
           (trading_day.date === '2023-02-23' && acc.location === 'The Peppermint Club') ||
           (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club') ||
           (trading_day.date === '2023-07-05' && acc.location === 'Bootsy Bellows') ||
-          (trading_day.date === '2023-08-01' && acc.location === 'Delilah')) {
+          (trading_day.date === '2023-08-01' && acc.location === 'Delilah') ||
+          (trading_day.date === '2023-08-14' && acc.location === 'The Peppermint Club') ||
+          (trading_day.date === '2023-08-18' && acc.location === 'Delilah') ) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
         }
@@ -2332,6 +2344,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             serverPool.tips += 114.69;
             airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['AutoGrat'] += 114.69;
             airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['Total Tips'] += 114.69;
+          } else if (trading_day.date === '2023-08-24') {
+            bartenderPool.tips -= 266.13;
           }
         }
         if (acc.location === 'The Peppermint Club') {
@@ -2614,7 +2628,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if (trading_day.date === '2023-08-12') {
             airtable_data['2023-08-12_200025_James_SHOREbar_Support']['Final Tips'] += 135.8;
           } else if (trading_day.date === '2023-08-19') {
-            airtable_data['2023-08-19_200025_James_SHOREbar_Support']['Final Tips'] += 102.05;
+            airtable_data['2023-08-19_200025_James_SHOREbar_Support']['Final Tips'] += 72.9;
+          } else if (trading_day.date === '2023-08-24') {
+            airtable_data['2023-08-24_17428_Kate_SHOREbar_Server']['Final Tips'] += 133.06;
+            airtable_data['2023-08-24_200025_James_SHOREbar_Support']['Final Tips'] += 133.06;
           }
         }
       }
