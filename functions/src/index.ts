@@ -1387,6 +1387,17 @@ const locations: any = {
     location_id: "317863",
     full_shift: 6
   },
+  // "361814": 
+  "Delilah Miami": {
+    r365_code: 405,
+    paycome_code: "165682",
+    user: "upserve_delilah-miami-2",
+    password: "J_YEk7TKJYDt",
+    location: "Delilah Miami",
+    type: "restaurant",
+    location_id: "361814",
+    full_shift: 6
+  },
 }
 
 const getMonday = (d: Date, week: number) => {
@@ -1713,6 +1724,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '14581_Jordan_The Peppermint Club_Bartender';
           } else if (id === '398110_Martel_Didi_Server') {
             id = '398210_Martel_Didi_Server';
+          } else if (id === '_Sophie_SHOREbar_Server') {
+            id = '16418_Sophie_SHOREbar_Server';
           } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Petite Taqueria') {
             id = '17642_Marco_Petite Taqueria_Bartender';
             role_name = 'Bartender';
@@ -1778,27 +1791,37 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
           if (check.payments) {
             for (let payment of check.payments) {
-              if (payment.type === 'Cash') {
-                if (check.trading_day_id === '0fdef4ea-3d9d-4fe4-8900-fb49f0ba2511' && check.employee_id === '38521f27-cd2a-41bc-af70-74828f9e789c') continue;
 
-                if (payment.id === 'be43ce02-2dc6-406b-aba9-e7477d2636b3') {
-                  payment.tip_amount = 146.00;
-                }
-                if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
-                  payment.tip_amount = 50.00;
-                }
-                if (payment.id === '7fc773e0-e3ae-4941-86d1-0a20f542162e') { // Delilah 08/09 +30$
-                  payment.tip_amount = 30.00;
-                }
-                if (payment.id === 'c981e893-efec-4c37-81e2-325061d7dbff') {// Delilah 08/13 +50$
-                  payment.tip_amount = 50.00;
-                }
-                if (payment.id === '28a81425-41b8-4f46-a039-aa2f803933c8') { // TNG 08/13 +292$
-                  payment.tip_amount = 292.00;
-                }
-                if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5'].indexOf(payment.id) > -1) {
-                  continue;
-                }
+              if (check.trading_day_id === '0fdef4ea-3d9d-4fe4-8900-fb49f0ba2511' && check.employee_id === '38521f27-cd2a-41bc-af70-74828f9e789c') continue;
+
+              if (payment.id === 'be43ce02-2dc6-406b-aba9-e7477d2636b3') {
+                payment.tip_amount = 146.00;
+              }
+              if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
+                payment.tip_amount = 50.00;
+              }
+              if (payment.id === '7fc773e0-e3ae-4941-86d1-0a20f542162e') { // Delilah 08/09 +30$
+                payment.tip_amount = 30.00;
+              }
+              if (payment.id === 'c981e893-efec-4c37-81e2-325061d7dbff') {// Delilah 08/13 +50$
+                payment.tip_amount = 50.00;
+              }
+              if (payment.id === '28a81425-41b8-4f46-a039-aa2f803933c8') { // TNG 08/13 +292$
+                payment.tip_amount = 292.00;
+              }
+              if (payment.id === '5148fb9b-a3d2-4596-830c-600f210d2644') { // Didi 8/23 +$40.71 to server tip pool
+                payment.tip_amount = 58.94;
+              }
+              if (payment.id === '3b2b05a9-682a-4f97-9c40-ea5186a74b01') { // Didi 8/26 -$20
+                payment.tip_amount = 6.81;
+              }
+              if (payment.id === 'f088664b-b2a8-4b4a-b1f1-122eaaf1527d') { // BST 08/23 -2500$
+                payment.tip_amount -= 2500;
+              }
+              if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5'].indexOf(payment.id) > -1) {
+                continue;
+              }
+              if (payment.type === 'Cash') {
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1873,9 +1896,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-05-23') {
               serverPool.service_charge += service_charges;
               service_charges = 0;
-            } else if (acc.location === 'SHOREbar' && trading_day.date === '2023-08-25') {
-              bartenderPool.tips += service_charges;
-              service_charges = 0;
             }
 
             if (midday === 'pm') {
@@ -1937,7 +1957,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           (trading_day.date === '2023-07-05' && acc.location === 'Bootsy Bellows') ||
           (trading_day.date === '2023-08-01' && acc.location === 'Delilah') ||
           (trading_day.date === '2023-08-14' && acc.location === 'The Peppermint Club') ||
-          (trading_day.date === '2023-08-18' && acc.location === 'Delilah') ) {
+          (trading_day.date === '2023-08-18' && acc.location === 'Delilah')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
         }
@@ -2632,6 +2652,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if (trading_day.date === '2023-08-24') {
             airtable_data['2023-08-24_17428_Kate_SHOREbar_Server']['Final Tips'] += 133.06;
             airtable_data['2023-08-24_200025_James_SHOREbar_Support']['Final Tips'] += 133.06;
+          }
+        } else if (acc.location === 'Bird Streets Club') {
+          if (trading_day.date === '2023-08-23') {
+            airtable_data['2023-08-23_12887_Bryan_Bird Streets Club_Bartender']['Card Tips'] += 2500;
+            airtable_data['2023-08-23_12887_Bryan_Bird Streets Club_Bartender']['Total Tips'] += 2500;
+            airtable_data['2023-08-23_24357_Kevin_Bird Streets Club_Server']['Final Tips'] += 500;
+            airtable_data['2023-08-23_12682_Michael_Bird Streets Club_Server']['Final Tips'] += 500;
+            airtable_data['2023-08-23_398007_Kendall_Bird Streets Club_Server']['Final Tips'] += 750;
+            airtable_data['2023-08-23_17465_Dustin_Bird Streets Club_Server']['Final Tips'] += 750;
           }
         }
       }
