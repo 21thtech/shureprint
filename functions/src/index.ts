@@ -1710,28 +1710,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '28931_Ciara_Bootsy Bellows_Server';
           } else if (id === '18931_Raine_Poppy_Server') {
             id = '28931_Ciara_Poppy_Server';
-          } else if (id === '_Brooke_Poppy_Server') {
-            id = '14870_Brooke_Poppy_Server';
           } else if (acc.location === 'Slab BBQ LA') {
             id = '18971_Pablo_Slab BBQ LA_Server';
           } else if (acc.location === 'Slab BBQ Pasadena') {
             id = '19642_Jefferson_Slab BBQ Pasadena_Server';
-          } else if (id === 'null_Ethan_The Peppermint Club_Bartender') {
-            id = '13406_Ethan_The Peppermint Club_Bartender';
-          } else if (id === '_Jose_Petite Taqueria_Bartender') {
-            id = '13068_Jose_Petite Taqueria_Bartender';
-          } else if (id === '_Freddie_Petite Taqueria_Bartender') {
-            id = '12857_Freddie_Petite Taqueria_Bartender';
-          } else if (id === '_Nate_Delilah_Bartender') {
-            id = '14211_Nate_Delilah_Bartender';
-          } else if (id === '_Jordan_Delilah_Bartender') {
-            id = '14581_Jordan_Delilah_Bartender';
-          } else if (id === '_Jean Paul_Delilah_Bartender') {
-            id = '14428_Jean Paul_Delilah_Bartender';
           } else if (id === '_Jordan_The Peppermint Club_Bartender') {
             id = '14581_Jordan_The Peppermint Club_Bartender';
-          } else if (id === '398110_Martel_Didi_Server') {
-            id = '398210_Martel_Didi_Server';
           } else if (id === '_Sophie_SHOREbar_Server') {
             id = '16418_Sophie_SHOREbar_Server';
           } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Petite Taqueria') {
