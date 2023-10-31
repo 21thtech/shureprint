@@ -1714,10 +1714,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '18971_Pablo_Slab BBQ LA_Server';
           } else if (acc.location === 'Slab BBQ Pasadena') {
             id = '19642_Jefferson_Slab BBQ Pasadena_Server';
-          } else if (id === '_Jordan_The Peppermint Club_Bartender') {
-            id = '14581_Jordan_The Peppermint Club_Bartender';
-          } else if (id === '_Sophie_SHOREbar_Server') {
-            id = '16418_Sophie_SHOREbar_Server';
           } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Petite Taqueria') {
             id = '17642_Marco_Petite Taqueria_Bartender';
             role_name = 'Bartender';
