@@ -1495,6 +1495,28 @@ const getTransferData = (fromDate: string, toDate: string) => {
   })
 }
 
+const getBuyoutData = (fromDate: string, toDate: string) => {
+  return new Promise(resolve => {
+    let buyouts: any = {};
+    base('Buyout').select({
+      fields: ["Identity", "Buyout"],
+      maxRecords: 1000,
+      view: "Grid view",
+      filterByFormula: `"And(DATESTR({Date}) >= ${fromDate}, DATESTR({Date}) <= ${toDate})"`
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      records.forEach((record) => {
+        buyouts[record.get('Identity')] = record.get("Buyout");
+      });
+      fetchNextPage();
+
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve(null); }
+      console.log(`Get Buyout from ${fromDate} to ${toDate}`);
+      resolve(buyouts);
+    });
+  })
+}
+
 const getOverPointData = () => {
   return new Promise(resolve => {
     let overpoint_data: any = {};
@@ -1549,6 +1571,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   let venue_data: any = {};
   let transfer_data: any = {};
   let additional_data: any = {};
+  let buyouts: any = {};
 
   console.log('getTipReport Started.')
   // Get Airtable Employees Data;
@@ -1557,6 +1580,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   venue_data = await getVenueData();
   transfer_data = await getTransferData(fromDate, toDate);
   additional_data = await getDelilahAdditionalData(fromDate, toDate);
+  buyouts = await getBuyoutData(fromDate, toDate) || {};
 
   console.log(`Getting 7shift Report from ${fromDate} to ${toDate}` + (locationId ? ` For ${locationId}` : ''));
 
@@ -1657,7 +1681,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         };
         let bohPool = {
           pts: 0,
-          tips: 0,
+          tips: buyouts[acc.location + '(' + trading_day.date + ')'] || 0,
           count: 0
         }
 
@@ -1673,7 +1697,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           pts_pm: 0,
           tips_pm: 0
         };
-
 
         let middayObj: any = {};
         if (acc.type === 'nightclub1') {
@@ -2295,7 +2318,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   }
                 }
-                if (acc.location === 'The Nice Guy' && event.tips > 0) {
+                if (event.tips > 0) {
                   pts = total_hours > 0 ? 0.5 : 0;
                   bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                 }
@@ -2396,6 +2419,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             serverPool.tips += 319.60;
             airtable_data['2023-07-25_398091_Alanna_Didi_Server']['AutoGrat'] += 319.60;
             airtable_data['2023-07-25_398091_Alanna_Didi_Server']['Total Tips'] += 319.60;
+          } else if (trading_day.date === '2023-11-04') {
+            serverPool.pts += 0.4;
           }
         }
         if (acc.location === 'Bootsy Bellows') {
@@ -2483,25 +2508,19 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let point = airtable_data[id]['Point'];
           let final_tips = 0;
           if (event.tips > 0 && midday !== 'pm') {
-            if (acc.location === 'The Nice Guy') {
-              // Exceptional Case For The Nice Guy
-              switch (role_name) {
-                case 'Line Cook':
-                case 'Prep Cook':
-                case 'Dishwasher':
-                case 'Pastry Prep Cook':
-                case 'Porter': {
-                  final_tips = Math.round(event.tips * 0.01 * point / bohPool.pts * 100) / 100;
-                  break;
-                }
-                default: {
-                  final_tips = Math.round(event.tips * 0.99 * point / event.pts * 100) / 100;
-                }
+            switch (role_name) {
+              case 'Line Cook':
+              case 'Prep Cook':
+              case 'Dishwasher':
+              case 'Pastry Prep Cook':
+              case 'Porter': {
+                final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                break;
               }
-            } else {
-              final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+              default: {
+                final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+              }
             }
-
           } else if (event.tips_pm > 0 && midday === 'pm') {
             final_tips = Math.round(event.tips_pm * point / event.pts_pm * 100) / 100;
           } else {
@@ -2612,87 +2631,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         }
 
         if (acc.location === 'Bootsy Bellows') {
-          if (trading_day.date === '2023-04-19') {
-            // Exceptional Event Tip Distribution
-            airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Point'] = 1;
-            airtable_data['2023-04-19_11480_Saxon_Bootsy Bellows_Bartender']['Final Tips'] += 500;
-            airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Point'] = 0.5;
-            airtable_data['2023-04-19_18463_Jair_Bootsy Bellows_Barback']['Final Tips'] += 250;
-            airtable_data['2023-04-19_17642_Marco_Bootsy Bellows_Bartender']['Final Tips'] += 500;
-            airtable_data['2023-04-19_13233_Christine_Bootsy Bellows_Server']['Final Tips'] += 500;
-            airtable_data['2023-04-19_28931_Ciara_Bootsy Bellows_Server']['Service Charge'] = 1750;
-          } else if (trading_day.date === '2023-04-29') {
-            // Exceptional Event Tip Distribution
-            airtable_data['2023-04-29_12857_Freddie_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_12637_Kelly_Bootsy Bellows_Bartender']['Point'] = 1;
-            airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_21073_Adam_Bootsy Bellows_TSA']['Point'] = 1;
-            airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_16011_Feliciano_Bootsy Bellows_TSA']['Point'] = 1;
-            airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_18463_Jair_Bootsy Bellows_TSA']['Point'] = 1;
-            airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Final Tips'] += 399.6;
-            airtable_data['2023-04-29_17745_Jorge_Bootsy Bellows_TSA']['Point'] = 1;
-            airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Final Tips'] += 199.8;
-            airtable_data['2023-04-29_10052_Fabian_Bootsy Bellows_Delivery']['Point'] = 0.5;
-            airtable_data['2023-04-29_16992_Hannah_Bootsy Bellows_Bartender']['Service Charge'] = 2997;
-          }
         } else if (acc.location === 'Delilah') {
-          if (trading_day.date === '2023-06-08') {
-            airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Service Charge'] = 375;
-            airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Cash Tips'] = 986;
-            airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Total Tips'] += 986;
-            airtable_data['2023-06-08_17415_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_17283_Sergio_Delilah_Dishwasher']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_397999_Eduardo_Delilah_Line Cook']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_398002_Luis_Delilah_Line Cook']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_398027_Reynaldo_Delilah_Line Cook']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_28045_Felix_Delilah_Line Cook']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_17143_Gelma_Delilah_Line Cook']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Final Tips'] += 14.86;
-            airtable_data['2023-06-08_14520_Cecilio_Delilah_Prep Cook']['Service Charge'] += 133.75;
-            airtable_data['2023-06-08_16811_Erin_Delilah_Bartender']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_14018_Patrick_Delilah_Bartender']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_13067_Carlos_Delilah_Bartender']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_17721_Jaclyn_Delilah_Bartender']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_11967_Demi_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_18594_Mathew_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_11069_Alexander_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_13793_Kelsey_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_11553_Danielle_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_11002_Eduardo A_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_15977_Sarah_Delilah_Server']['Final Tips'] += 80.06;
-            airtable_data['2023-06-08_17016_Bryan_Delilah_Barback']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_18435_Jesus_Delilah_Barback']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_13509_Ricardo_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_397985_Oscar_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_12708_Armando_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_12761_Giovanni_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_11674_Luis_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_14682_Severino_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_17627_Jose Rodrigo_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_12954_Michael_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_15138_Edelmiro_Delilah_Support']['Final Tips'] += 40.03;
-            airtable_data['2023-06-08_10770_Karolina_Delilah_Host']['Final Tips'] += 20.01;
-            airtable_data['2023-06-08_11437_Kat_Delilah_Host']['Final Tips'] += 20.01;
-          } else if (trading_day.date === '2023-07-24') {
-            airtable_data['2023-07-24_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 40.75;
-            airtable_data['2023-07-24_10214_Elver_Delilah_Dishwasher']['Final Tips'] += 40.75;
-            airtable_data['2023-07-24_398075_Anthony_Delilah_Line Cook']['Final Tips'] += 40.75;
-            airtable_data['2023-07-24_17143_Gelma_Delilah_Prep Cook']['Final Tips'] += 40.75;
-          } else if (trading_day.date === '2023-10-26') {
-            airtable_data['2023-10-26_17415_Sergio_Delilah_Dishwasher']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_17283_Sergio_Delilah_Dishwasher']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_17741_Sonia_Delilah_Dishwasher']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_398076_Christopher_Delilah_Line Cook']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_398075_Anthony_Delilah_Line Cook']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_398171_Paul_Delilah_Line Cook']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_397990_Faustino_Delilah_Prep Cook']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_14520_Cecilio_Delilah_Prep Cook']['Final Tips'] += 51.25;
-            airtable_data['2023-10-26_18419_Walter_Delilah_Prep Cook']['Final Tips'] += 51.25;
+          if (bohPool.tips && airtable_data[`${trading_day.date}_13067_Carlos_Delilah_Bartender`]) {
+            airtable_data[`${trading_day.date}_13067_Carlos_Delilah_Bartender`]['Service Charge'] += bohPool.tips;
           }
         } else if (acc.location === 'SHOREbar') {
           if (trading_day.date === '2023-05-11') {
@@ -2722,6 +2663,17 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-08-23_12682_Michael_Bird Streets Club_Server']['Final Tips'] += 500;
             airtable_data['2023-08-23_398007_Kendall_Bird Streets Club_Server']['Final Tips'] += 750;
             airtable_data['2023-08-23_17465_Dustin_Bird Streets Club_Server']['Final Tips'] += 750;
+          }
+        } else if (acc.location === 'Didi') {
+          if (bohPool.tips && airtable_data[`${trading_day.date}_398098_Chase_Didi_Bartender`]) {
+            airtable_data[`${trading_day.date}_398098_Chase_Didi_Bartender`]['Service Charge'] += bohPool.tips;
+          }
+          if (trading_day.date === '2023-11-04') {
+            airtable_data['2023-11-04_398503_Ricardo_Didi_Barback']['Final Tips'] += 142.96;
+          }
+        } else if (acc.location === 'The Nice Guy') {
+          if (bohPool.tips && airtable_data[`${trading_day.date}_10196_Jason_The Nice Guy_Server`]) {
+            airtable_data[`${trading_day.date}_10196_Jason_The Nice Guy_Server`]['Service Charge'] += bohPool.tips;
           }
         }
       }
