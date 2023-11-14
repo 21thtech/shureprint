@@ -4,7 +4,7 @@ const PDFDocument = require("pdfkit-table");
 const pdf = require("html-pdf");
 const request = require('request').defaults({ encoding: null });
 admin.initializeApp();
-const { json2csvAsync } = require('json-2-csv');
+import { json2csvAsync } from 'json-2-csv';
 const { getStorage, ref, getDownloadURL, uploadString } = require('firebase/storage');
 const { initializeApp } = require('firebase/app');
 const firebaseConfig = {
@@ -886,7 +886,12 @@ export const generateReceiptDoc = functions.runWith(runtimeOpts).https.onRequest
         footer: {
           height: "30px"
         },
-        orientation: "portrait"
+        orientation: "portrait",
+        childProcessOptions: {
+          env: {
+            OPENSSL_CONF: '/dev/null',
+          },
+        }
       }).toBuffer((err: any, buffer: any) => {
         if (err) {
           response.status(500).send('error creating document');
@@ -936,7 +941,12 @@ export const generateQuoteDoc = functions.runWith(runtimeOpts).https.onRequest(a
         footer: {
           height: "40px"
         },
-        orientation: "portrait"
+        orientation: "portrait",
+        childProcessOptions: {
+          env: {
+            OPENSSL_CONF: '/dev/null',
+          },
+        }
       }).toBuffer((err: any, buffer: any) => {
         if (err) {
           console.log(err.message);
@@ -987,7 +997,12 @@ export const generateReturnDoc = functions.runWith(runtimeOpts).https.onRequest(
         footer: {
           height: "30px"
         },
-        orientation: "portrait"
+        orientation: "portrait",
+        childProcessOptions: {
+          env: {
+            OPENSSL_CONF: '/dev/null',
+          },
+        }
       }).toBuffer((err: any, buffer: any) => {
         if (err) {
           console.log(err.message);
@@ -1843,7 +1858,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               if (payment.id === '364881e5-84d8-4641-a624-3238f471a933') { // Delilah 10/31 +42$
                 payment.tip_amount = 105;
               }
-              if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5', '40e26703-5759-43d1-974c-e3ef3d769c51'].indexOf(payment.id) > -1) {
+              if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5', '40e26703-5759-43d1-974c-e3ef3d769c51', 'ed243af5-fda7-46df-9c56-aa74febd0294'].indexOf(payment.id) > -1) {
                 continue;
               }
               if (payment.type === 'Cash') {
@@ -1851,7 +1866,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 total_tips += Number(payment.tip_amount);
               }
               if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'House Account'
-                || payment.type === 'Owners' || payment.type === 'Ticketmaster' || payment.type === 'Deposit' || payment.type === 'Delivery Account') {
+                || payment.type === 'Owners' || payment.type === 'Ticketmaster' || payment.type === 'Deposit' || payment.type === 'Delivery Account'
+                || payment.type === 'Dorsia') {
                 airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
               }
@@ -1982,6 +1998,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (trading_day.date === '2023-08-16') {
             event.tips += 406;
             airtable_data['2023-08-16_11480_Saxon_Poppy_Bartender']['Service Charge'] = 406;
+          }
+        } else if (acc.location === 'The Nice Guy' && trading_day.date === '2023-11-10') {
+          if (trading_day.date === '2023-11-10') {
+            event.tips = 0;
+            serverPool.tips += 750;
+            bartenderPool.tips += 750;
           }
         }
 
