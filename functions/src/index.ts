@@ -1578,6 +1578,38 @@ const getDelilahAdditionalData = (fromDate: string, toDate: string) => {
   })
 }
 
+const getAdditionalTips = (fromDate: string, toDate: string) => {
+  return new Promise(resolve => {
+    let additional_data: any = {};
+    base('Additional Tips').select({
+      fields: ["Identity", "Tips", "Type", "Role", "Midday", "Location", "Date"],
+      maxRecords: 1000,
+      view: "Grid view",
+      filterByFormula: `"And(DATESTR({Date}) >= ${fromDate}, DATESTR({Date}) <= ${toDate})"`
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      records.forEach((record) => {
+        if (!additional_data[record.get("Date") + "_" + record.get("Location")]) {
+          additional_data[record.get("Date") + "_" + record.get("Location")] = [];
+        }
+        additional_data[record.get("Date") + "_" + record.get("Location")].push({
+          identity: record.get('Identity'),
+          tips: record.get("Tips"),
+          type: record.get("Type"),
+          role: record.get("Role"),
+          midday: record.get("Midday")
+        })
+      });
+      fetchNextPage();
+
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve(null); }
+      console.log(`Get Additional Tips Data from ${fromDate} to ${toDate}`);
+      console.log(additional_data);
+      resolve(additional_data);
+    });
+  })
+}
+
 const getTipReport = async (fromDate: string, toDate: string, locationId?: string) => {
   let users: any[] = [];
   let airtable_data: any = {};
@@ -1587,6 +1619,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   let transfer_data: any = {};
   let additional_data: any = {};
   let buyouts: any = {};
+  let additionalTips: any = {};
 
   console.log('getTipReport Started.')
   // Get Airtable Employees Data;
@@ -1596,6 +1629,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   transfer_data = await getTransferData(fromDate, toDate);
   additional_data = await getDelilahAdditionalData(fromDate, toDate);
   buyouts = await getBuyoutData(fromDate, toDate) || {};
+  additionalTips = await getAdditionalTips(fromDate, toDate) || {};
 
   console.log(`Getting 7shift Report from ${fromDate} to ${toDate}` + (locationId ? ` For ${locationId}` : ''));
 
@@ -1811,56 +1845,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
           }
 
-          if (check.id === 'b6affee6-a9a9-4d45-9985-dffa252be6d9' || check.id === 'af10245e-58b2-49fa-b7b7-63359dc51887' || check.id === '678314ef-37d5-4259-8ff5-5126790c17f5') {
-            continue;
-          }
           airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
           total_tips += Number(check.mandatory_tip_amount);
 
           if (check.payments) {
             for (let payment of check.payments) {
-
-              if (check.trading_day_id === '0fdef4ea-3d9d-4fe4-8900-fb49f0ba2511' && check.employee_id === '38521f27-cd2a-41bc-af70-74828f9e789c') continue;
-
-              if (payment.id === 'be43ce02-2dc6-406b-aba9-e7477d2636b3') {
-                payment.tip_amount = 146.00;
-              }
-              if (payment.id === 'f7b1122d-b6a2-4c66-8424-af6350a84417') {
-                payment.tip_amount = 50.00;
-              }
-              if (payment.id === '7fc773e0-e3ae-4941-86d1-0a20f542162e') { // Delilah 08/09 +30$
-                payment.tip_amount = 30.00;
-              }
-              if (payment.id === 'c981e893-efec-4c37-81e2-325061d7dbff') {// Delilah 08/13 +50$
-                payment.tip_amount = 50.00;
-              }
-              if (payment.id === '28a81425-41b8-4f46-a039-aa2f803933c8') { // TNG 08/13 +292$
-                payment.tip_amount = 292.00;
-              }
-              if (payment.id === '5148fb9b-a3d2-4596-830c-600f210d2644') { // Didi 8/23 +$40.71 to server tip pool
-                payment.tip_amount = 58.94;
-              }
-              if (payment.id === '3b2b05a9-682a-4f97-9c40-ea5186a74b01') { // Didi 8/26 -$20
-                payment.tip_amount = 6.81;
-              }
-              if (payment.id === 'f088664b-b2a8-4b4a-b1f1-122eaaf1527d') { // BST 08/23 -2500$
-                payment.tip_amount -= 2500;
-              }
-              if (payment.id === '4dc79ab3-add4-4713-9e87-ebb83765f7de') {
-                payment.tip_amount = 7.8;
-              }
-              if (payment.id === 'b1496fd4-ba27-4359-b547-606e154ba4d6') { //TNG 10/21 +60$
-                payment.tip_amount = 66.48;
-              }
-              if (payment.id === '568fcb3a-301d-4520-85d7-3c7d198953b6') { //Poppy 10/28 +1500$
-                payment.tip_amount = 1500;
-              }
-              if (payment.id === '364881e5-84d8-4641-a624-3238f471a933') { // Delilah 10/31 +42$
-                payment.tip_amount = 105;
-              }
-              if (['131daaf4-0288-41be-9ebc-033bb4a8567c', '978959b9-5908-41a4-88ba-f9209c2727b5', '40e26703-5759-43d1-974c-e3ef3d769c51', 'ed243af5-fda7-46df-9c56-aa74febd0294'].indexOf(payment.id) > -1) {
-                continue;
-              }
               if (payment.type === 'Cash') {
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
                 total_tips += Number(payment.tip_amount);
@@ -1910,33 +1899,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
             service_charges = check.items.filter((item: any) => (item.name === "Service Charge" || item.name === "NYE Service Charge" || item.name === "Automatic Gratuity") && Number(item.price) > 6)
               .reduce((sum: number, item: any) => sum += Number(item.price), 0);
-            if (acc.location === 'The Peppermint Club' && (trading_day.date === '2022-12-15' || trading_day.date === '2022-12-17')) {
-              service_charges = 0;
-            } else if (acc.location === 'Bootsy Bellows' && (trading_day.date === '2023-04-19' || trading_day.date === '2023-04-29')) {
-              service_charges = 0;
-            } else if (acc.location === 'Delilah LA') {
-              if (trading_day.date === '2023-06-08') {
-                service_charges = 0;
-              } else if (trading_day.date === '2023-07-27') {
-                service_charges = 0;
-              }
-            } else if (acc.location === 'The Nice Guy' && (trading_day.date === '2023-06-15' || trading_day.date === '2023-06-16')) {
-              service_charges = 0;
-            } else if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-07-15') {
-              service_charges = 0;
-            } else if (acc.location === 'Didi' && trading_day.date === '2023-07-25') {
-              service_charges = 0;
-            } else if (acc.location === 'SHOREbar') {
-              if (trading_day.date === '2023-07-27') {
-                service_charges = 0;
-              } else if (trading_day.date === '2023-09-29') {
-                service_charges = 0;
-              }
-            } else if (acc.location === 'Poppy') {
-              if (trading_day.date === '2023-10-28') {
-                service_charges = 0;
-              }
-            }
             airtable_data[airtable_id]['Service Charge'] += service_charges;
 
             // Exception Event Date For BSC
@@ -1984,26 +1946,66 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (additional_data[trading_day.date]) {
             bartenderPool.tips += additional_data[trading_day.date];
           }
-        }
-        if (acc.location === 'The Peppermint Club') {
-          if (trading_day.date === '2023-01-10') {
-            event.tips += 75;
-            airtable_data['2023-01-10_14701_Alexandria_The Peppermint Club_Bartender']['Service Charge'] = 75;
-          } else if (trading_day.date === '2023-06-03') {
-            serverPool.tips += 31.36;
-            airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Cash Tips'] += 31.36;
-            airtable_data['2023-06-03_12495_Denvre_The Peppermint Club_Server']['Total Tips'] += 31.36;
-          }
-        } else if (acc.location === 'Poppy') {
-          if (trading_day.date === '2023-08-16') {
-            event.tips += 406;
-            airtable_data['2023-08-16_11480_Saxon_Poppy_Bartender']['Service Charge'] = 406;
-          }
-        } else if (acc.location === 'The Nice Guy' && trading_day.date === '2023-11-10') {
+        } else if (acc.location === 'The Nice Guy') {
           if (trading_day.date === '2023-11-10') {
             event.tips = 0;
             serverPool.tips += 750;
             bartenderPool.tips += 750;
+          }
+        }
+
+        //Additional Tips
+        if (additionalTips[trading_day.date + "_" + acc.location]) {
+          for (let additional_tip_data of additionalTips[trading_day.date + "_" + acc.location]) {
+            let airtable_id = additional_tip_data['identity'];
+            if (additional_tip_data) {
+              if (additional_tip_data['type'] === 'Cash') {
+                airtable_data[airtable_id]['Cash Tips'] += additional_tip_data['tips'];
+                airtable_data[airtable_id]['Total Tips'] += additional_tip_data['tips'];
+              } else if (additional_tip_data['type'] === 'Card') {
+                airtable_data[airtable_id]['Card Tips'] += additional_tip_data['tips'];
+                airtable_data[airtable_id]['Total Tips'] += additional_tip_data['tips'];
+              } else if (additional_tip_data['type'] === 'Service Charge') {
+                airtable_data[airtable_id]['Service Charge'] += additional_tip_data['tips'];
+              }
+            }
+
+            switch (additional_tip_data['role']) {
+              case 'Server': { //Server pool
+                if (acc.type === 'nightclub1' && additional_tip_data['midday'] === 'pm') {
+                  if (additional_tip_data['type'] === 'Service Charge') {
+                    event.tips_pm += additional_tip_data['tips'];
+                  } else {
+                    serverPool.tips_pm += additional_tip_data['tips'];
+                  }
+                } else {
+                  if (additional_tip_data['type'] === 'Service Charge') {
+                    event.tips += additional_tip_data['tips'];
+                  } else {
+                    serverPool.tips += additional_tip_data['tips'];
+                  }
+                }
+                break;
+              }
+              case 'Bartender':
+              case 'Lead Bartender':
+              case 'Service Bar': { //Bartender pool
+                if (acc.type === 'nightclub1' && additional_tip_data['midday'] === 'pm') {
+                  if (additional_tip_data['type'] === 'Service Charge') {
+                    event.tips_pm += additional_tip_data['tips'];
+                  } else {
+                    bartenderPool.tips_pm += additional_tip_data['tips'];
+                  }
+                } else {
+                  if (additional_tip_data['type'] === 'Service Charge') {
+                    event.tips += additional_tip_data['tips'];
+                  } else {
+                    bartenderPool.tips += additional_tip_data['tips'];
+                  }
+                }
+                break;
+              }
+            }
           }
         }
 
@@ -2065,12 +2067,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
             let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
             let airtable_id = `${trading_day.date}_${id}`;
-
-            if (airtable_id === '2023-01-25_200018_Andy_SHOREbar_Barback') {
-              continue;
-            } else if (airtable_id === '2023-01-20_11263_Daniel_Poppy_TSA') {
-              continue;
-            }
 
             if (!airtable_data[airtable_id]) {
               airtable_data[airtable_id] = {
@@ -2374,102 +2370,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               airtable_data[airtable_id]['Point'] += pts;
             }
 
-          }
-        }
-
-        // Exceptional Tip Dist
-        if (acc.location === 'Bird Streets Club') {
-          if (trading_day.date === '2023-01-23') {
-            serverPool.tips += 50;
-            airtable_data['2023-01-23_17492_Kristopher_Bird Streets Club_Server']['Total Tips'] += 50;
-          } else if (trading_day.date === '2023-07-15') {
-            bartenderPool.tips_pm += 750;
-            airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Card Tips'] += 750;
-            airtable_data['2023-07-15_14428_Jean Paul_Bird Streets Club_Bartender']['Total Tips'] += 750;
-          }
-        }
-        if (acc.location === 'Delilah LA') {
-          if (trading_day.date === '2023-02-25') {
-            serverPool.tips -= 1000;
-            bartenderPool.tips += 1000;
-          } else if (trading_day.date === '2023-06-03') {
-            serverPool.tips += 10;
-            airtable_data['2023-06-03_15806_Landon_Delilah LA_Server']['Cash Tips'] += 10;
-            airtable_data['2023-06-03_15806_Landon_Delilah LA_Server']['Total Tips'] += 10;
-          } else if (trading_day.date === '2023-06-04') {
-            serverPool.tips += 10;
-            airtable_data['2023-06-04_11967_Demi_Delilah LA_Server']['Cash Tips'] += 10;
-            airtable_data['2023-06-04_11967_Demi_Delilah LA_Server']['Total Tips'] += 10;
-          } else if (trading_day.date === '2023-07-24') {
-            event.tips -= 163;
-          } else if (trading_day.date === '2023-08-03') {
-            bartenderPool.tips += 23;
-            airtable_data['2023-08-03_13607_Anthony_Delilah LA_Bartender']['Cash Tips'] += 23;
-            airtable_data['2023-08-03_13607_Anthony_Delilah LA_Bartender']['Total Tips'] += 23;
-          }
-        }
-        if (acc.location === 'Slab BBQ LA') {
-          if (trading_day.date === '2023-07-03') {
-            serverPool.tips = 266.86;
-            airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 266.86;
-            airtable_data['2023-07-03_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 266.86;
-          } else if (trading_day.date === '2023-07-04') {
-            serverPool.tips = 1296.32;
-            airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 1296.32;
-            airtable_data['2023-07-04_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 1296.32;
-          } else if (trading_day.date === '2023-07-05') {
-            serverPool.tips = 144.96;
-            airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 144.96;
-            airtable_data['2023-07-05_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 144.96;
-          } else if (trading_day.date === '2023-07-07') {
-            serverPool.tips = 238.9;
-            airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 238.9;
-            airtable_data['2023-07-07_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 238.9;
-          } else if (trading_day.date === '2023-07-08') {
-            serverPool.tips = 362.55;
-            airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 362.55;
-            airtable_data['2023-07-08_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 362.55;
-          } else if (trading_day.date === '2023-07-09') {
-            serverPool.tips = 159.33;
-            airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Card Tips'] = 159.33;
-            airtable_data['2023-07-09_18971_Pablo_Slab BBQ LA_Server']['Total Tips'] = 159.33;
-          }
-        }
-        if (acc.location === 'Didi') {
-          if (trading_day.date === '2023-07-24') {
-            serverPool.tips += 76;
-            airtable_data['2023-07-24_398091_Alanna_Didi_Server']['Cash Tips'] += 76;
-            airtable_data['2023-07-24_398091_Alanna_Didi_Server']['Total Tips'] += 76;
-          } else if (trading_day.date === '2023-07-25') {
-            serverPool.tips += 319.60;
-            airtable_data['2023-07-25_398091_Alanna_Didi_Server']['AutoGrat'] += 319.60;
-            airtable_data['2023-07-25_398091_Alanna_Didi_Server']['Total Tips'] += 319.60;
-          } else if (trading_day.date === '2023-11-04') {
-            serverPool.pts += 0.4;
-          }
-        }
-        if (acc.location === 'Bootsy Bellows') {
-          if (trading_day.date === '2023-03-29') {
-            bartenderPool.tips += 300;
-            airtable_data['2023-03-29_11480_Saxon_Bootsy Bellows_Bartender']['Total Tips'] += 300;
-          }
-        }
-        if (acc.location === 'SHOREbar') {
-          if (trading_day.date === '2023-05-11') {
-            bartenderPool.tips -= 29.67;
-          } else if (trading_day.date === '2023-07-13') {
-            serverPool.tips += 114.69;
-            airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['AutoGrat'] += 114.69;
-            airtable_data['2023-07-13_17174_Ansleigh_SHOREbar_Server']['Total Tips'] += 114.69;
-          } else if (trading_day.date === '2023-08-24') {
-            bartenderPool.tips -= 266.13;
-          }
-        }
-        if (acc.location === 'The Peppermint Club') {
-          if (trading_day.date === '2023-05-25') {
-            serverPool.tips += 100;
-            airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Cash Tips'] += 100;
-            airtable_data['2023-05-25_11789_Metasebya_The Peppermint Club_Server']['Total Tips'] += 100;
           }
         }
 
