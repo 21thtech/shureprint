@@ -2055,16 +2055,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
             role_name = getRoleName(role_name, role.location_label);
 
-            if (trading_day.date === '2023-01-04' && acc.location === 'Poppy' && user.user['employee_id'] == '18463') {
-              role_name = 'TSA'
-            }
-            if (trading_day.date === '2023-04-22' && acc.location === 'SHOREbar' && user.user['employee_id'] == '31782') {
-              role_name = 'Barback'
-            }
-            if (trading_day.date >= '2023-01-25' && trading_day.date <= '2023-01-29' && trading_day.date !== '2023-01-28' && user.user['employee_id'] == '15224' && acc.location === 'The Peppermint Club') {
-              role_name = 'Barback';
-            }
-
             let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
             let airtable_id = `${trading_day.date}_${id}`;
 
@@ -2104,14 +2094,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data[airtable_id]["Exceptions Pay"] += Math.round(compliance_exceptions_pay * 100) / 100;
             airtable_data[airtable_id]["Total Pay"] += Math.round(total_pay * 100) / 100;
 
-            if (airtable_id === '2023-04-19_11480_Saxon_Bootsy Bellows_Bartender' ||
-              airtable_id === '2023-04-19_18463_Jair_Bootsy Bellows_Barback' ||
-              airtable_id === '2023-04-29_12637_Kelly_Bootsy Bellows_Bartender' ||
-              airtable_id === '2023-04-29_21073_Adam_Bootsy Bellows_TSA' ||
-              airtable_id === '2023-04-29_16011_Feliciano_Bootsy Bellows_TSA' ||
-              airtable_id === '2023-04-29_17745_Jorge_Bootsy Bellows_TSA' ||
-              airtable_id === '2023-04-29_18463_Jair_Bootsy Bellows_TSA' ||
-              id === 'n/a6_Ada_Bootsy Bellows_Barback') {
+            if (id === 'n/a6_Ada_Bootsy Bellows_Barback') {
               continue;
             }
 
@@ -2560,6 +2543,14 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (bohPool.tips && airtable_data[`${trading_day.date}_13067_Carlos_Delilah LA_Bartender`]) {
             airtable_data[`${trading_day.date}_13067_Carlos_Delilah LA_Bartender`]['Service Charge'] += bohPool.tips;
           }
+          if (trading_day.date === '2023-11-22') {
+            airtable_data['2023-11-22_17721_Jaclyn_Delilah LA_Bartender']['Service Charge'] += 394.25;
+            airtable_data['2023-11-22_17143_Gelma_Delilah LA_Prep Cook']['Final Tips'] += 78.85;
+            airtable_data['2023-11-22_18419_Walter_Delilah LA_Prep Cook']['Final Tips'] += 78.85;
+            airtable_data['2023-11-22_14520_Cecilio_Delilah LA_Prep Cook']['Final Tips'] += 78.85;
+            airtable_data['2023-11-22_17283_Sergio_Delilah LA_Dishwasher']['Final Tips'] += 78.85;
+            airtable_data['2023-11-22_17415_Sergio_Delilah LA_Dishwasher']['Final Tips'] += 78.85;
+          }
         } else if (acc.location === 'SHOREbar') {
           if (trading_day.date === '2023-05-11') {
             airtable_data['2023-05-11_200025_James_SHOREbar_Support']['Final Tips'] += 29.67;
@@ -2959,9 +2950,6 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
           "Email": "LHernandez@hwoodgroup.com",
           "Name": "Lucy Hernandez",
         }, {
-          "Email": "jdelgiudice@hwoodgroup.com",
-          "Name": "Jordan DelGiudice",
-        }, {
           "Email": "mkostevych@hwoodgroup.com",
           "Name": "Mark Kostevych",
         }],
@@ -3307,6 +3295,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
         if (check.payments) {
           new_payments = [...new_payments, ...check.payments.filter((payment: any) => pg_payments_ids.indexOf(payment.id) < 0).map((payment: any) => ({
             ...payment,
+            location: loc,
             trading_day_id: payment.trading_day,
             trading_day: trading_day.date,
             ...(airtable_employees[employee_id] ? { employee: employee_id } : {})
@@ -3351,11 +3340,11 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
     if (new_payments.length) {
       console.log(`New Payments ${new_payments.length} To PostgreSQL`);
       let sql_str = new_payments.reduce((sql, payment, index) => {
-        return sql + `($$${payment.id}$$,$$${payment.check_id}$$,${payment.amount},${payment.tip_amount},$$${payment.date}$$,`
+        return sql + `($$${payment.id}$$,$$${payment.check_id}$$,${payment.amount},${payment.tip_amount},$$${payment.date}$$,$$${payment.location}$$,`
           + `$token$${payment.cc_name ? payment.cc_name : ''}$token$,$$${payment.cc_type || ''}$$,$$${payment.last_4 || ''}$$,$$${payment.trading_day_id}$$,$$${payment.trading_day}$$,`
           + `${payment.tips_withheld},$$${payment.employee_name || ''}$$,$$${payment.employee_role_name || ''}$$,$$${payment.employee_id || ''}$$,`
           + `$$${payment.employee ? payment.employee : 'manager'}$$,$$${payment.type}$$)` + (index < (new_payments.length - 1) ? ', ' : ';');
-      }, 'INSERT INTO payments (id, check_id, amount, tip_amount, date, '
+      }, 'INSERT INTO payments (id, check_id, amount, tip_amount, date, location,'
       + 'cc_name, cc_type, last_4, trading_day_id, trading_day, '
       + 'tips_withheld, employee_name, employee_role_name, employee_id, '
       + 'employee, type) VALUES ');
