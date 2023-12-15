@@ -1303,6 +1303,8 @@ const locations: any = {
     r365_code: 1201,
     paycome_code: "0OA83",
     location: "Harriet's Rooftop",
+    user: "upserve_delilah-miami-2",
+    password: "J_YEk7TKJYDt",
     type: "restaurant",
     location_id: "282511",
     full_shift: 6
@@ -1386,8 +1388,6 @@ const locations: any = {
     r365_code: 602,
     paycome_code: "0OA79",
     location: "Didi",
-    // user: "michael-green_petite-taqueria",
-    // password: "vwLQdp7dNotf",
     user: "upserve_didi",
     password: "gWHgUVcxpEbs",
     type: "restaurant1",
@@ -1451,7 +1451,7 @@ const getEmployeeData = () => {
     let airtable_employees: any = {};
     base('Employees').select({
       fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Role Id", "Reg Rate"],
-      maxRecords: 2000,
+      maxRecords: 5000,
       view: "Grid view"
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
@@ -1604,7 +1604,6 @@ const getAdditionalTips = (fromDate: string, toDate: string) => {
     }, function done(err: any) {
       if (err) { console.error(err); resolve(null); }
       console.log(`Get Additional Tips Data from ${fromDate} to ${toDate}`);
-      console.log(additional_data);
       resolve(additional_data);
     });
   })
@@ -1667,6 +1666,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         acc.password,
         0
       );
+
+      if (acc.location_id === '282511') {
+        checks = [], employee_data = [];
+      }
+
       console.log("Getting Employee: ", acc.location, employee_data.length);
       for (let employee of employee_data) {
         employees[employee.id] = { ...employee };
@@ -1742,8 +1746,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
         let event = {
           pts: 0,
+          pts_boh: 0,
           tips: 0,
           pts_pm: 0,
+          pts_boh_pm: 0,
           tips_pm: 0
         };
 
@@ -1870,7 +1876,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
           if (check.items) {
             let service_charges;
-            if (acc.type === 'nightclub1') {
+            if (acc.type === 'nightclub1' || acc.type === 'restaurant2') {
               service_charges = check.items.filter((item: any) => item.name === 'Service Fee').reduce((sum: number, item: any) => sum += Number(item.price), 0);
               airtable_data[airtable_id]['Service Charge'] += service_charges;
               if (check.zone === 'Sushi Bar') {
@@ -2009,14 +2015,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
         }
 
-        if (event.tips > 0 || (trading_day.date === '2023-01-14' && acc.location === 'Poppy') ||
-          (trading_day.date === '2023-09-19' && acc.location === 'Poppy') ||
-          (trading_day.date === '2023-02-23' && acc.location === 'The Peppermint Club') ||
-          (trading_day.date === '2023-02-25' && acc.location === 'The Peppermint Club') ||
-          (trading_day.date === '2023-07-05' && acc.location === 'Bootsy Bellows') ||
-          (trading_day.date === '2023-08-01' && acc.location === 'Delilah LA') ||
-          (trading_day.date === '2023-08-14' && acc.location === 'The Peppermint Club') ||
-          (trading_day.date === '2023-08-18' && acc.location === 'Delilah LA')) {
+        if (event.tips > 0 || (trading_day.date <= '2023-12-14' && trading_day.date >= '2023-12-12' && acc.location === 'Delilah Miami')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
         }
@@ -2111,6 +2110,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
             daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
 
+            // Exception Tip Distribution For Delilah Miami Training Roles
+            if (acc.location === 'Delilah Miami' && trading_day.date >= '2023-12-08' && trading_day.date <= '2023-12-10') {
+              role_name = role_name.replace(' Training', '');
+            }
 
             switch (role_name) {
               case 'Server':
@@ -2311,19 +2314,19 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Dishwasher':
               case 'Pastry Prep Cook':
               case 'Porter': {
-                if (acc.type === 'nightclub1') {
+                if (acc.type === 'nightclub1' || acc.type === 'restaurant2') {
                   pts = total_hours > 0 ? 0.5 : 0;
                   if (over_point === 0) break;
                   if (event.tips > 0 && midday !== 'pm') {
-                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
-                    event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                    event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else {
                     bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   }
-                }
-                if (event.tips > 0) {
+                } else if (event.tips > 0) {
                   pts = total_hours > 0 ? 0.5 : 0;
+                  if (over_point === 0) break;
                   bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                 }
                 break;
@@ -2356,6 +2359,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
         }
 
+        if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-12-04') {
+          event.pts += 1; // Irina's AM Pool
+        }
+
         let temp_tips = 0, temp_tips_pm = 0;
         if (acc.type == 'restaurant') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
@@ -2364,6 +2371,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         } else if (acc.type === 'restaurant1') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'restaurant2') {
+          serverPool.tips += serverPool.service_charge
+          bartenderPool.tips += bartenderPool.service_charge
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.05 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
@@ -2409,6 +2418,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         console.log('Event Tip: ', event);
         for (let id of Object.keys(airtable_data)) {
           let role_name = airtable_data[id]['Role Name'];
+
+          // Exception Tip Distribution For Delilah Miami Training Roles
+          if (acc.location === 'Delilah Miami' && trading_day.date >= '2023-12-08' && trading_day.date <= '2023-12-10') {
+            role_name = role_name.replace(' Training', '');
+          }
+
           let location = airtable_data[id]['Location'];
           let midday = airtable_data[id]['Midday'];
           if (airtable_data[id]['Day'] !== trading_day.date || location !== acc.location) continue;
@@ -2422,15 +2437,35 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Dishwasher':
               case 'Pastry Prep Cook':
               case 'Porter': {
-                final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                if (midday === 'am' || acc.type === 'restaurant2') {
+                  final_tips = Math.round(event.tips * 0.01 * point / event.pts_boh * 100) / 100;
+                } else {
+                  final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                }
                 break;
               }
               default: {
-                final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+                if (midday === 'am' || acc.type === 'restaurant2') {
+                  final_tips = Math.round(event.tips * 0.99 * point / event.pts * 100) / 100;
+                } else {
+                  final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+                }
               }
             }
           } else if (event.tips_pm > 0 && midday === 'pm') {
-            final_tips = Math.round(event.tips_pm * point / event.pts_pm * 100) / 100;
+            switch (role_name) {
+              case 'Line Cook':
+              case 'Prep Cook':
+              case 'Dishwasher':
+              case 'Pastry Prep Cook':
+              case 'Porter': {
+                final_tips = Math.round(event.tips_pm * 0.01 * point / event.pts_boh_pm * 100) / 100;
+                break;
+              }
+              default: {
+                final_tips = Math.round(event.tips_pm * 0.99 * point / event.pts_pm * 100) / 100;
+              }
+            }
           } else {
             switch (role_name) {
               case 'Server': { //Server pool
@@ -2579,6 +2614,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             airtable_data['2023-08-23_12682_Michael_Bird Streets Club_Server']['Final Tips'] += 500;
             airtable_data['2023-08-23_398007_Kendall_Bird Streets Club_Server']['Final Tips'] += 750;
             airtable_data['2023-08-23_17465_Dustin_Bird Streets Club_Server']['Final Tips'] += 750;
+          } else if (trading_day.date === '2023-12-04') {
+            airtable_data['2023-12-04_22524_Irina_Bird Streets Club_Server']['Final Tips'] += 174.24;
           }
         } else if (acc.location === 'Didi') {
           if (bohPool.tips && airtable_data[`${trading_day.date}_398098_Chase_Didi_Bartender`]) {
@@ -2590,6 +2627,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         } else if (acc.location === 'The Nice Guy') {
           if (bohPool.tips && airtable_data[`${trading_day.date}_10196_Jason_The Nice Guy_Server`]) {
             airtable_data[`${trading_day.date}_10196_Jason_The Nice Guy_Server`]['Service Charge'] += bohPool.tips;
+          }
+        } else if (acc.location === 'Delilah Miami') {
+          if (bohPool.tips && airtable_data[`${trading_day.date}_556133_Jeffrey_Delilah Miami_Server`]) {
+            airtable_data[`${trading_day.date}_556133_Jeffrey_Delilah Miami_Server`]['Service Charge'] += bohPool.tips;
           }
         }
       }
@@ -2644,8 +2685,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           ]
         }
       }];
-      // } else {
-      //   console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Pay'], row['Final Tips']);
+    } else if (row['Total Hours'] || row['Service Charge'] || row['Total Tips']) {
+      console.log('Skipped ID : ', key, airtable_employees[employee_id] && airtable_employees[employee_id].getId() || 'Not Existed', row['Total Tips'], row['Service Charge']);
     }
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
@@ -2653,7 +2694,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
   try {
     // Delete Old Records;
-    await db.query(`DELETE from reports WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${Object.keys(locations).find(loc => locations[loc].location_id === locationId)}\';` : ";"), []);
+    let location;
+    if (locationId) {
+      location = Object.keys(locations).find(loc => locations[loc].location_id === locationId);
+      location = location?.replace('\'', '\'\'');
+    }
+    await db.query(`DELETE from reports WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${location}\';` : ";"), []);
     await db.query(sql_str, []);
 
     const removalWebhook = {
@@ -2820,6 +2866,7 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
           reg_hours: 0,
           ot_hours: 0,
           dot_hours: 0,
+          total_hours: 0,
           exception_costs: 0,
           mbp: 0,
           cash_tips: 0,
@@ -2949,6 +2996,9 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
         }, {
           "Email": "LHernandez@hwoodgroup.com",
           "Name": "Lucy Hernandez",
+        }, {
+          "Email": "ssmith@hwoodgroup.com",
+          "Name": "Susan",
         }, {
           "Email": "mkostevych@hwoodgroup.com",
           "Name": "Mark Kostevych",
