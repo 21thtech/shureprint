@@ -31,9 +31,8 @@ const company_id = 223218;
 const ACCESS_TOKEN = "65613835363364352d333839632d343966632d623865662d623936336333356563316562";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
 // Expire In 2024/01/05
-const SOS_TOKEN = "wHDwQhPZ4klkElciRIrnQFerIp7Tln_C_1lDPdtN-zy-QTYifIjhF-avxIbF_7Ra8oA0xhXWDg2Z96fWgaetMlO1613M4bgEbIgSmDOfEyWbQkE5etJilnBmHbRXCqMpbmQs17s5-TBlTPqDdU27rTl0gtwlHnyBxqlPp_no3fB5Q08JrxAmbaXWEdxFNHu2yE0JSfAV4k-RPVVZDt6iN9-NhXdg3-JrEKvMDlwdYWDRhm6rnaHSNUBGhVtYj0r4E8Wja4nlSUvs9sYbTaLZMIXnzH4as3MQyJ-55mUzYPBF7ypE";
-// const SOS_TOKEN = "u3HrboX6V-lUX6f93VHi3tX4HsbKMJWnhGXjcbsnhurRjhtcJn-RwqI-vS5m7ZoyC0B1fp3flCw7cIc9YEHVR4YkaT8ZUynI-K0mYKB2blP3mvp5nbixhIWgB41P6oCAjb29Kxz0Cb5yA1ubKa_qYIbllEGagpTtWMWrzGVegwvZ4phAjg6qyuijN1vNnpoJ5uVZbmLX4opWNzJRlvZJ-K212eFMhE1BycSTnGBZpd-rG6Kr18HhNeE2kU98FSmpCYYlwwSc_zm3RXBKhmLHeVtfsizfD4AZi_svcsU0UXBYjgc8";
-// const SOS_REFRESH_TOKEN = "LO55L0vrxHBadzsSx0lzj19NtC04PczJuV_eQwBUZW3JW62X97AvzqixFoMuDM0e7bey63peBWaMYWJ0HaDKJ3JqhIfla8HRacqrSVJKFB7gXIQymmjGceWrkP8UHwyC5HP6gdMQ0q48-7X9k_Qjf8W0BcTYfbcBEbEsZhy-XfWZ2ZLhzU2oTfci-fNdc7UDs5H-9ohdWJ5R93JFHyPx89thGMU95miymYaNPM7km-jzH-I3gFAtQxQOjVm2scKEJ9KHVcVSGv1WNd43NNra2qtP4HwGHk2nWi87Wlx6BHb9o7n7nafA0ewGOPMN7h0DznbSiA";
+const SOS_TOKEN = "YPVTWK5trIYfQQ_NQ5UoPBFSNA1EG3Oufmnkjp9Oshwn9CzuVbxsZonhgGAzfKx_Pow8paSql8lBVssfNfUbmOufcSy3hgFBuYZ_kiLT2iuCQhcJDorHJrJSfLvZBEy5cQ4EaWBWfrzDlJwyBdkposH-LPXjIF86kq8g_bUgLVpICEEeo1r5lC5U1OpW0_yfRgtrSqyVdddhSb2tDj_flXjpX6XRhv9quPPElnok52RDquZI0OaK0xvgYOO4JuTzPmuS2cODcTVrRj2gmkKqFRuSvQIA2NmP_XZi5CKtq3F7FuE1";
+// const SOS_REFRESH_TOKEN = "GlZlDKzx7bBpAcQPJFm_pfo7TTsLWDK3U62nnvVEDFQPff4A8E_6a_MbtAcAilNxmwO6x_vuIaKhdgwie_0_YeNRE1W2-avWnZonmBI4x_ToAbr5OOwCTvaEEBZBKls-j8-Kuv4JfIhkFq7CnaD1vkWjDGhb_OJHmIqrNaeaRtW9jnjYKMrkh2WoRFUDi7jUzNHTa2ypKIACC42OAWj8o2ddIaVpKA4g3jdua3lUOjKJ-M3QpzBRsxqELctqPqObPni1s41UaWhpOGtwLWozlExhVebemh5cGUHTxGQXV_IzCvQD";
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
@@ -1541,10 +1540,12 @@ const getOverPointData = () => {
       view: "Over points"
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
-        overpoint_data[record.get('Identity')] = {
-          over_point: record.get('Override Point'),
-          reason: record.get('Reason')
-        };
+        if (!isNaN(record.get('Override Point'))) {
+          overpoint_data[record.get('Identity')] = {
+            over_point: record.get('Override Point'),
+            reason: record.get('Reason')
+          };
+        }
       });
       fetchNextPage();
 
@@ -1761,7 +1762,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             )) {
               const shifts = user.weeks.reduce((res: any[], week: any) => res = [...res, ...week.shifts], []);
               let role_name = role.location_label === 'Slab BBQ LA' ?
-                (user.user.employee_id === '16439' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
+                (role.role_label === 'Manager' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
                 : role.location_label === 'Slab BBQ Pasadena' ?
                   (['12065', '17414', '19557'].includes(user.user.employee_id) ? role.role_label : 'Server')
                   : role.role_label;
@@ -1818,6 +1819,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Didi') {
             id = '398096_Michael_Didi_Server';
             role_name = 'Server';
+          } else if ((role_name === 'Admin' || role_name === 'Manager' || role_name === 'Events') && acc.location === 'Delilah Miami') {
+            id = '556167_Will_Delilah Miami_Server';
+            role_name = 'Server';
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
@@ -1848,6 +1852,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               "Final Tips": 0,
               "Service Charge": 0,
               "Service Fee": 0,
+              "Allocated Service Fee": 0,
               "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [venue_data[`${weekday}_${acc.location}`]] : []
             }
           }
@@ -1879,6 +1884,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             let service_charges;
             if (acc.type === 'nightclub1' || acc.type === 'restaurant2') {
               service_charges = check.items.filter((item: any) => item.name === 'Service Fee').reduce((sum: number, item: any) => sum += Number(item.price), 0);
+              if (acc.type === 'restaurant2') {
+                service_charges *= 0.9;
+              }
               airtable_data[airtable_id]['Service Fee'] += service_charges;
               if (check.zone === 'Sushi Bar') {
                 let temp_service_charges = Math.round(service_charges * 50) / 100;
@@ -1960,6 +1968,24 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             bartenderPool.tips += 750;
           }
         }
+        if (trading_day.date === '2023-12-31') {
+          if (acc.location === 'Bootsy Bellows') {
+            event.tips = 0;
+            serverPool.tips += 6746.36;
+          } else if (acc.location === 'Delilah LA') {
+            event.tips = 0;
+            serverPool.tips += 12955.31;
+          } else if (acc.location === 'Poppy') {
+            event.tips = 0;
+            serverPool.tips += 12270.50;
+          } else if (acc.location === 'The Nice Guy') {
+            event.tips = 0;
+            serverPool.tips += 3390.00;
+          } else if (acc.location === 'The Peppermint Club') {
+            event.tips = 0;
+            bartenderPool.tips += 600;
+          }
+        }
 
         //Additional Tips
         if (additionalTips[trading_day.date + "_" + acc.location]) {
@@ -2006,7 +2032,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 if (acc.type === 'nightclub1' && additional_tip_data['midday'] === 'pm') {
                   if (additional_tip_data['type'] === 'Service Charge') {
                     event.tips_pm += additional_tip_data['tips'];
-                  } else  if (additional_tip_data['type'] === 'Service Fee') {
+                  } else if (additional_tip_data['type'] === 'Service Fee') {
                     bartenderPool.service_charge_pm += additional_tip_data['tips'];
                   } else {
                     bartenderPool.tips_pm += additional_tip_data['tips'];
@@ -2058,7 +2084,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               midday = acc.type === 'nightclub1' ? Number(shift.date.slice(11, 13)) < 14 ? 'am' : 'pm' : null
             }
             let role_name = role.location_label === 'Slab BBQ LA' ?
-              (user.user.employee_id === '16439' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
+              (role.role_label === 'Manager' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
               : role.location_label === 'Slab BBQ Pasadena' ?
                 (['12065', '17414', '19557'].includes(user.user.employee_id) ? role.role_label : 'Server')
                 : role.role_label;
@@ -2092,6 +2118,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 "Final Tips": 0,
                 "Service Charge": 0,
                 "Service Fee": 0,
+                "Allocated Service Fee": 0,
                 "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [venue_data[`${weekday}_${acc.location}`]] : []
               }
             } else {
@@ -2129,7 +2156,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
             switch (role_name) {
               case 'Server':
-              case 'Sommelier': { //Server pool
+              case 'Sommelier':
+              case 'Lead Sommelier': { //Server pool
                 if (event.tips > 0 && midday !== 'pm') {
                   pts = total_hours > 0 ? 1 : 0;
                   if (over_point === 0) break;
@@ -2321,12 +2349,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 break;
               }
+              case 'Cooks':
               case 'Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
               case 'Porter': {
-                if (acc.type === 'nightclub1' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12'))) {
+                if (acc.type === 'nightclub1' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31')) {
                   pts = total_hours > 0 ? 0.5 : 0;
                   if (over_point === 0) break;
                   if (event.tips > 0 && midday !== 'pm') {
@@ -2383,9 +2412,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         } else if (acc.type === 'restaurant1') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'restaurant2') {
-          serverPool.tips += serverPool.service_charge
-          bartenderPool.tips += bartenderPool.service_charge
+          serverPool.tips += serverPool.service_charge;
+          bartenderPool.tips += bartenderPool.service_charge;
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.05 * serverPool.tips * 100) / 100 : 0;
+          let temp_service_charge = bartenderPool.pts > 0 ? Math.round(0.05 * serverPool.service_charge * 100) / 100 : 0;
+          serverPool.service_charge -= temp_service_charge;
+          bartenderPool.service_charge += temp_service_charge;
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub1') {
@@ -2441,15 +2473,16 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (airtable_data[id]['Day'] !== trading_day.date || location !== acc.location) continue;
           if (!airtable_data[id]['Point']) continue;
           let point = airtable_data[id]['Point'];
-          let final_tips = 0;
+          let final_tips = 0, allocated_service_fee = 0;
           if (event.tips > 0 && midday !== 'pm') {
             switch (role_name) {
+              case 'Cooks':
               case 'Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
               case 'Porter': {
-                if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12'))) {
+                if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31')) {
                   final_tips = Math.round(event.tips * 0.01 * point / event.pts_boh * 100) / 100;
                 } else {
                   final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
@@ -2457,7 +2490,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               default: {
-                if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12'))) {
+                if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31')) {
                   final_tips = Math.round(event.tips * 0.99 * point / event.pts * 100) / 100;
                 } else {
                   final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
@@ -2466,6 +2499,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
           } else if (event.tips_pm > 0 && midday === 'pm') {
             switch (role_name) {
+              case 'Cooks':
               case 'Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
@@ -2481,7 +2515,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else {
             switch (role_name) {
               case 'Server':
-              case 'Sommelier': { //Server pool
+              case 'Sommelier':
+              case 'Lead Sommelier': { //Server pool
                 if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(serverPool.tips_pm * point / serverPool.pts_pm * 100) / 100;
@@ -2490,6 +2525,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   }
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
+                  if (acc.type === 'restaurant2') {
+                    allocated_service_fee = Math.round(serverPool.service_charge * point / serverPool.pts * 100) / 100;
+                  }
                 } else {
                   final_tips = Math.round(serverPool.tips * (serverPool.count / (serverPool.count + busserRunnerPool.count)) * point / serverPool.pts * 100) / 100;
                 }
@@ -2502,6 +2540,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   final_tips = Math.round(bartenderPool.tips * (barbackPool.count / (bartenderPool.count + barbackPool.count)) * point / barbackPool.pts * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   final_tips = Math.round(bartenderPool.tips * point / bartenderPool.pts * 100) / 100;
+                  if (acc.type === 'restaurant2') {
+                    allocated_service_fee = Math.round(bartenderPool.service_charge * point / bartenderPool.pts * 100) / 100;
+                  }
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / bartenderPool.pts_pm * 100) / 100;
@@ -2520,6 +2561,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   final_tips = Math.round(bartenderPool.tips * (bartenderPool.count / (bartenderPool.count + barbackPool.count)) * point / bartenderPool.pts * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   final_tips = Math.round(bartenderPool.tips * point / bartenderPool.pts * 100) / 100;
+                  if (acc.type === 'restaurant2') {
+                    allocated_service_fee = Math.round(bartenderPool.service_charge * point / bartenderPool.pts * 100) / 100;
+                  }
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / bartenderPool.pts_pm * 100) / 100;
@@ -2540,6 +2584,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   final_tips = Math.round(serverPool.tips * (busserRunnerPool.count / (serverPool.count + busserRunnerPool.count)) * point / busserRunnerPool.pts * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
+                  if (acc.type === 'restaurant2') {
+                    allocated_service_fee = Math.round(serverPool.service_charge * point / serverPool.pts * 100) / 100;
+                  }
                 } else if (acc.type === 'nightclub1') {
                   if (midday === 'pm') {
                     final_tips = Math.round(serverPool.tips_pm * point / serverPool.pts_pm * 100) / 100;
@@ -2565,6 +2612,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 break;
               }
+              case 'Cooks':
               case 'Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
@@ -2584,9 +2632,71 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
           }
           airtable_data[id]['Final Tips'] = final_tips;
+          airtable_data[id]['Allocated Service Fee'] = allocated_service_fee;
         }
 
+        // New Year Tips
+        if (acc.location === 'The Peppermint Club') {
+          if (trading_day.date === '2023-12-31') {
+            airtable_data['2023-12-31_398127_Martha_The Peppermint Club_Barback']['Final Tips'] = 160.61;
+            airtable_data['2023-12-31_12002_Mikolaj_The Peppermint Club_Bartender']['Final Tips'] = 321.21;
+            airtable_data['2023-12-31_14701_Alexandria_The Peppermint Club_Bartender']['Final Tips'] = 321.21;
+            airtable_data['2023-12-31_398072_Hal_The Peppermint Club_Bartender']['Final Tips'] = 321.21;
+            airtable_data['2023-12-31_11789_Metasebya_The Peppermint Club_Server']['Final Tips'] = 377.67;
+            airtable_data['2023-12-31_13727_Ariel_The Peppermint Club_Server']['Final Tips'] = 377.67;
+            airtable_data['2023-12-31_15630_Gonzalo_The Peppermint Club_Table Server Assistant']['Final Tips'] = 181.61;
+            airtable_data['2023-12-31_15224_Shaundell_The Peppermint Club_Table Server Assistant']['Final Tips'] = 181.61;
+          }
+        } else if (acc.location === 'Poppy') {
+          if (trading_day.date === '2023-12-31') {
+            airtable_data['2023-12-31_10052_Fabian_Poppy_Barback']['Final Tips'] = 948.98;
+            airtable_data['2023-12-31_12637_Kelly_Poppy_Bartender']['Final Tips'] = 948.98;
+            airtable_data['2023-12-31_398077_Zoran_Poppy_Bartender']['Final Tips'] = 948.98;
+            airtable_data['2023-12-31_14172_Joe_Poppy_Service Bar']['Final Tips'] = 948.98;
+            airtable_data[`2023-12-31_398078_Ali'Cia_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_16807_Blaine_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_15330_Chloe_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_29958_Christine_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_28931_Ciara_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_19985_Dylan_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_17618_Markie_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_11866_Melissa_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_14039_Olivia_Poppy_Server`]['Final Tips'] = 1043.19;
+            airtable_data[`2023-12-31_19041_Adolfo_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_11736_Victor_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_14444_George_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_16011_Feliciano_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_18463_Jair_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_17745_Jorge_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_10420_Luis_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+            airtable_data[`2023-12-31_16092_Nelson_Poppy_Table Server Assistant`]['Final Tips'] = 509.01;
+          }
+        }
+
+
         if (acc.location === 'Bootsy Bellows') {
+          if (trading_day.date === '2023-12-31') {
+            airtable_data['2023-12-31_12418_Jose_Bootsy Bellows_Barback']['Final Tips'] = 309.2;
+            airtable_data['2023-12-31_11480_Saxon_Bootsy Bellows_Bartender']['Final Tips'] = 618.39;
+            airtable_data['2023-12-31_398541_Priscilla_Bootsy Bellows_Bartender']['Final Tips'] = 618.39;
+            airtable_data['2023-12-31_17767_Troy_Bootsy Bellows_Bartender']['Final Tips'] = 618.39;
+            airtable_data['2023-12-31_13068_Jose_Bootsy Bellows_Service Bar']['Final Tips'] = 618.39;
+            airtable_data['2023-12-31_17417_Alexa_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_11865_Ashton_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_18759_Cassie_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_13233_Christine_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_16163_Erica_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_11073_Gabrielle_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_398051_Hannah_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_17030_Liudmyla_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_18316_Suzie_Bootsy Bellows_Server']['Final Tips'] = 739.69;
+            airtable_data['2023-12-31_11263_Daniel_Bootsy Bellows_Table Server Assistant']['Final Tips'] = 350.78;
+            airtable_data['2023-12-31_16655_Elvis_Bootsy Bellows_Table Server Assistant']['Final Tips'] = 350.78;
+            airtable_data['2023-12-31_12039_Udiel_Bootsy Bellows_Table Server Assistant']['Final Tips'] = 350.78;
+            airtable_data['2023-12-31_14285_Matthew_Bootsy Bellows_Table Server Assistant']['Final Tips'] = 350.78;
+            airtable_data['2023-12-31_31782_Omar_Bootsy Bellows_Table Server Assistant']['Final Tips'] = 350.78;
+            airtable_data['2023-12-31_10575_Ricardo_Bootsy Bellows_Table Server Assistant']['Final Tips'] = 350.78;
+          }
         } else if (acc.location === 'Delilah LA') {
           if (bohPool.tips && airtable_data[`${trading_day.date}_13067_Carlos_Delilah LA_Bartender`]) {
             airtable_data[`${trading_day.date}_13067_Carlos_Delilah LA_Bartender`]['Service Charge'] += bohPool.tips;
@@ -2637,6 +2747,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (trading_day.date === '2023-11-04') {
             airtable_data['2023-11-04_398503_Ricardo_Didi_Barback']['Final Tips'] += 142.96;
           }
+          if (trading_day.date === '2023-12-31') {
+            airtable_data['2023-12-31_398111_Cassandra_Didi_Bartender']['Final Tips'] = 580.8;
+            airtable_data['2023-12-31_398102_Eric_Didi_Bartender']['Final Tips'] = 580.8;
+            airtable_data['2023-12-31_398095_Carson_Didi_Server']['Final Tips'] += 145.2;
+            airtable_data['2023-12-31_398537_Amanda_Didi_Server']['Final Tips'] += 145.2;
+          }
+          
         } else if (acc.location === 'The Nice Guy') {
           if (bohPool.tips && airtable_data[`${trading_day.date}_10196_Jason_The Nice Guy_Server`]) {
             airtable_data[`${trading_day.date}_10196_Jason_The Nice Guy_Server`]['Service Charge'] += bohPool.tips;
@@ -2656,7 +2773,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
   let converted_airtable_data: any[] = [];
   let sql_str = 'INSERT INTO reports (airtable_id, employee, midday, week_beginning, day, reg_hours, ot_hours, dot_hours, total_hours,'
-    + 'exceptions_pay, total_pay, cash_tips, card_tips, autograt, point, over_point, reason, total_tips, service_charge, service_fee, final_tips, location,'
+    + 'exceptions_pay, total_pay, cash_tips, card_tips, autograt, point, over_point, reason, total_tips, service_charge, service_fee, allocated_service_fee, final_tips, location,'
     + 'role, category) VALUES';
 
   for (let key of Object.keys(airtable_data)) {
@@ -2687,7 +2804,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
       sql_str += `($$${key}$$, $$${employee_id}$$, $$${row['Midday'] || ''}$$, $$${row['Week Beginning']}$$, $$${row['Day']}$$,`
         + `${row['Reg Hours']},${row['OT Hours']},${row['DOT Hours']},${row['Total Hours']},${row['Exceptions Pay']},${row['Total Pay']},`
         + `${row['Cash Tips']},${row['Card Tips']},${row['AutoGrat']},${row['Point']},${row['Override Point']},$$${row['Reason'] || ''}$$,`
-        + `${row['Total Tips']},${row['Service Charge']},${row['Service Fee']},${row['Final Tips']},$$${row['Location']}$$,$$${row['Role Name']}$$,$$${category}$$),`;
+        + `${row['Total Tips']},${row['Service Charge']},${row['Service Fee']},${row['Allocated Service Fee']},${row['Final Tips']},$$${row['Location']}$$,$$${row['Role Name']}$$,$$${category}$$),`;
       delete row['Role Name'];
       delete row['Location'];
       converted_airtable_data = [...converted_airtable_data, {
@@ -2888,6 +3005,8 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
           total_tips: 0,
           service_charge: 0,
           service_fee: 0,
+          allocated_service_fee: 0,
+          allocated_tips: 0,
           final_tips: 0,
           week: record.get('Week Beginning')
         }
@@ -2905,6 +3024,8 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
       csv_data[employee].total_tips += Math.round(record.get('Total Tips') * 100) / 100;
       csv_data[employee].service_charge += Math.round(record.get('Service Charge') * 100) / 100;
       csv_data[employee].service_fee += Math.round(record.get('Service Fee') * 100) / 100;
+      csv_data[employee].allocated_service_fee += Math.round(record.get('Allocated Service Fee') * 100) / 100;
+      csv_data[employee].allocated_tips += Math.round(record.get('Allocated Tips') * 100) / 100;
       csv_data[employee].final_tips += Math.round(record.get('Final Tips') * 100) / 100;
 
       if (!csv_data_venue[identity]) {
@@ -2968,6 +3089,8 @@ export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.sch
         { field: 'total_tips', title: 'Total Tips' },
         { field: 'service_charge', title: 'Service Charge' },
         { field: 'service_fee', title: 'Service Fee' },
+        { field: 'allocated_service_fee', title: 'Allocated Service Fee' },
+        { field: 'allocated_tips', title: 'Allocated Tips' },
         { field: 'final_tips', title: 'Final Tips' },
       ]
     });
