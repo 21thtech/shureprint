@@ -411,7 +411,7 @@ const useQuoteHTML = (body: any) => {
           <th width="15%" style="text-align: left;">Note</th>` + (!body.is_price_comparison ? `          
           <th width="5%">Qty</th>
           <th width="10%">Case Qty</th>` : ``) + `
-          <th width="10%">Shureprint Price</th>` + (body.showUnitPrice ? `
+          <th width="10%">SHW Price</th>` + (body.showUnitPrice ? `
           <th width="10%">Unit Price</th>` : '') + (!body.is_stock_quote ? `
           <th width="10%">Lead Time</th>
           <th width="5%">Set Ups</th>` : '') + (body.showPreviousPrice ? `
@@ -1088,7 +1088,7 @@ export const generateOrderGuide = functions.runWith(runtimeOpts).https.onRequest
       doc.table(table, {
         padding: 3,
         prepareHeader: () => doc.font("Courier-Bold").fontSize(8),
-        prepareRow: (row: any, indexColumn: number, indexRow: any, rectRow: any, rectCell: any) => {
+        prepareRow: (_row: any, indexColumn: number, _indexRow: any, _rectRow: any, rectCell: any) => {
           const { x, y, width, height } = rectCell;
 
           // first line 
@@ -1204,7 +1204,7 @@ export const generateSalesReportForCustomer = functions.runWith(runtimeOpts).htt
       doc.table(table, {
         padding: 3,
         prepareHeader: () => doc.font("Courier-Bold").fontSize(8),
-        prepareRow: (row: any, indexColumn: number, indexRow: any, rectRow: any, rectCell: any) => {
+        prepareRow: (_row: any, indexColumn: number, _indexRow: any, _rectRow: any, rectCell: any) => {
           const { x, y, width, height } = rectCell;
 
           // first line 
@@ -1257,7 +1257,7 @@ export const generateSalesReportForCustomer = functions.runWith(runtimeOpts).htt
 });
 
 export const getBase64FromUrl = functions.https.onRequest((req: any, res: any) => {
-  request.get(req.query.url, function (err: any, response: any, body: any) {
+  request.get(req.query.url, function (err: any, _response: any, body: any) {
     if (!err && res.statusCode == 200) {
       let data = Buffer.from(body).toString('base64');
       res.status(200).send(data);
@@ -1333,16 +1333,16 @@ const locations: any = {
     full_shift: 4
   },
   // "282515": 
-  "SHOREbar": {
-    r365_code: 201,
-    paycome_code: "0OA75",
-    location: "SHOREbar",
-    user: "michael-green_shorebar",
-    password: "zEHXeXRGZEVX",
-    type: "nightclub",
-    location_id: "282515",
-    full_shift: 5
-  },
+  // "SHOREbar": {
+  //   r365_code: 201,
+  //   paycome_code: "0OA75",
+  //   location: "SHOREbar",
+  //   user: "michael-green_shorebar",
+  //   password: "zEHXeXRGZEVX",
+  //   type: "nightclub",
+  //   location_id: "282515",
+  //   full_shift: 5
+  // },
   // "282516": 
   "Slab BBQ LA": {
     r365_code: 1101,
@@ -1846,6 +1846,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             id = '28931_Ciara_Bootsy Bellows_Server';
           } else if (id === '18931_Raine_Poppy_Server') {
             id = '28931_Ciara_Poppy_Server';
+          } else if (id === 'null_Melissa_Delilah LA_Bartender') {
+            id = '999978_Melissa_Delilah LA_Bartender';
           } else if (acc.location === 'Slab BBQ LA') {
             id = '18971_Pablo_Slab BBQ LA_Server';
           } else if (acc.location === 'Slab BBQ Pasadena') {
@@ -1915,8 +1917,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
           }
 
-          airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
-          total_tips += Number(check.mandatory_tip_amount);
+          if (!isEvent) {
+            airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
+            total_tips += Number(check.mandatory_tip_amount);
+          }
 
           if (check.payments && !isEvent) {
             for (let payment of check.payments) {
@@ -1941,7 +1945,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (check.items) {
             let service_charges;
             if ((acc.type === 'nightclub1' || acc.type === 'restaurant2') && !isEvent) {
-              service_charges = check.items.filter((item: any) => item.name === 'Service Fee').reduce((sum: number, item: any) => sum += Number(item.price), 0);
+              service_charges = check.items.filter((item: any) => item.name === 'Service Fee' || item.name === 'Service Fee II').reduce((sum: number, item: any) => sum += Number(item.price), 0);
               // if (acc.type === 'restaurant2') {
               //   service_charges *= 0.9;
               // }
@@ -2249,6 +2253,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
 
             switch (role_name) {
+              case 'Event Server':
+              case 'Events Server':
               case 'Server':
               case 'Sommelier':
               case 'Lead Sommelier': { //Server pool
@@ -2291,6 +2297,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     total_hours = 0;
                   }
                 }
+              case 'Event Bartender':
+              case 'Events Bartender':
               case 'Bartender':
               case 'Service Bar': { //Bartender pool
                 if (event.tips > 0 && midday !== 'pm') {
@@ -2326,6 +2334,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 break;
               }
+              case 'Event Busser':
+              case 'Busser':
               case 'Support':
               case 'Table Server Assistant':
               case 'TSA': {
@@ -2428,6 +2438,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Host':
+              case 'Events Reception':
+              case 'Event Reception':
+              case 'Reception':
+              case 'Receptionist':
               case 'Lead Host':
               case 'Event Host':
               case 'Anchor Host': {
@@ -2475,7 +2489,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 break;
               }
-              case 'Barback': {
+              case 'Barback':
+              case 'Event Barback': {
                 if (event.tips > 0 && midday !== 'pm') {
                   pts = total_hours > 0 ? 0.5 : 0;
                   if (over_point === 0) break;
@@ -2518,7 +2533,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
-              case 'Porter': {
+              case 'Porter':
+              case 'Lead Prep Cook': {
                 if (acc.type === 'nightclub1' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31' && trading_day.date !== '2024-02-05' && trading_day.date !== '2024-03-15')) {
                   pts = total_hours > 0 ? 0.5 : 0;
                   if (over_point === 0) break;
@@ -2666,7 +2682,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
-              case 'Porter': {
+              case 'Porter':
+              case 'Lead Prep Cook': {
                 if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31' && trading_day.date !== '2024-02-05' && trading_day.date !== '2024-03-15')) {
                   final_tips = Math.round(event.tips * 0.01 * point / event.pts_boh * 100) / 100;
                 } else {
@@ -2689,7 +2706,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
-              case 'Porter': {
+              case 'Porter':
+              case 'Lead Prep Cook': {
                 final_tips = Math.round(event.tips_pm * 0.01 * point / event.pts_boh_pm * 100) / 100;
                 break;
               }
@@ -2700,6 +2718,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else {
             switch (role_name) {
               case 'Server':
+              case 'Event Server':
+              case 'Events Server':
               case 'Sommelier':
               case 'Lead Sommelier': { //Server pool
                 if (acc.type === 'nightclub1') {
@@ -2729,7 +2749,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 break;
               }
-              case 'Barback': {
+              case 'Barback':
+              case 'Event Barback':
+              case 'Events Barback': {
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / (bartenderPool.pts_pm + barbackPool.pts_pm) * 100) / 100;
@@ -2761,6 +2783,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Bartender':
+              case 'Event Bartender':
+              case 'Events Bartender':
               case 'Lead Bartender':
               case 'Service Bar': { //Bartender pool
                 if (acc.type === 'restaurant') {
@@ -2793,6 +2817,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Runner':
+              case 'Event Busser':
+              case 'Busser':
+              case 'Event Runner':
               case 'Busser':
               case 'Support':
               case 'Table Server Assistant':
@@ -2828,6 +2855,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Host':
+              case 'Events Reception':
+              case 'Event Reception':
+              case 'Reception':
+              case 'Receptionist':
               case 'Lead Host':
               case 'Anchor Host': {
                 if (acc.type === 'restaurant') {
@@ -2852,7 +2883,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
-              case 'Porter': {
+              case 'Porter':
+              case 'Lead Prep Cook': {
                 if (acc.type === 'nightclub1') {
                   final_tips = Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                 }
@@ -3041,6 +3073,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
       case 'Pastry Prep Cook':
       case 'Porter':
       case 'Prep Cook':
+      case 'Lead Prep Cook':
       case 'Sous Chef':
       case 'Sushi Chef':
       case 'Sushi Cook':
@@ -3240,14 +3273,7 @@ export const importDailySalesReportToAirtable = functions.runWith(runtimeOpts).p
   await getTipReport(fromDate, toDate);
 });
 
-export const importWeeklySalesReportToAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 12 * * 1').onRun(async () => {
-  const now = new Date();
-  const fromDate = new Date(new Date().setDate(now.getDate() - 7)).toISOString().split('T')[0];
-  const toDate = new Date(new Date().setDate(now.getDate() - 1)).toISOString().split('T')[0];
-  await getTipReport(fromDate, toDate);
-});
-
-export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.schedule('0 14 * * 1').onRun(async () => {
+export const exportExcelFromAirtable = functions.runWith(runtimeOpts).pubsub.schedule('10 14 * * 1').onRun(async () => {
 
   let csv_data: any = {};
   let converted_csv_data: any[] = [];
@@ -4020,12 +4046,19 @@ export const readTSVfile = functions.runWith(runtimeOpts).https.onRequest(async 
           console.log(data);
           const parsedData = data.split('\n').map(str => str.split('\t'));
           console.log(parsedData);
-          res.status(200).send({
-            shipment_id: parsedData[0][1],
-            sku: parsedData[parsedData.length - 2][0],
-            asin: parsedData[parsedData.length - 2][2],
-            shipped: parsedData[parsedData.length - 2][9],
-          });
+          let total_skus = +parsedData[4][1];
+          console.log(`Total SkUs: ${total_skus}`);
+          let result: any[] = [];
+          for (let index = 0; index < total_skus; index++) {
+            result = [...result, {
+              shipment_id: parsedData[0][1],
+              sku: parsedData[parsedData.length - 2 - index][0],
+              asin: parsedData[parsedData.length - 2 - index][2],
+              shipped: parsedData[parsedData.length - 2 - index][9],
+              identity: parsedData[0][1] + " | " + parsedData[parsedData.length - 2 - index][2]
+            }]
+          }
+          res.status(200).send(result);
         });
       })
     } catch (e) {
@@ -4083,6 +4116,49 @@ export const readCSVFile = functions.runWith(runtimeOpts).https.onRequest(async 
           }
 
         });
+    } catch (e) {
+      console.log(e);
+      res.status(500).send(e);
+    }
+
+  }
+})
+
+export const updateSalesOrderItemLines = functions.runWith(runtimeOpts).https.onRequest(async (req: any, res: any) => {
+  res.set('Access-Control-Allow-Origin', '*');
+  res.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', '*');
+
+  if (['OPTIONS', 'GET', 'PUT'].indexOf(req.method) > - 1) {
+    res.status(405).send('Method Not Allowed');
+  } else {
+    try {
+      console.log(req.body);
+      const order_products = JSON.parse(req.body.order_products);
+      let sales_order = JSON.parse(req.body.sales_order)[0];
+      console.log("order_products");
+      console.log(order_products);
+      delete sales_order['subTotal'];
+      delete sales_order['total'];
+      delete sales_order['closed'];
+      delete sales_order['archived'];
+      delete sales_order['summaryOnly'];
+      delete sales_order['hasSignature'];
+      delete sales_order['statusLink'];
+      sales_order.lines = order_products.map((op: any) => {
+        let lineItem = sales_order.lines.find((item: any) => item.item.id === op.sos_id) || {};
+        return {
+          ...lineItem,
+          item: {
+            id: op.sos_id,
+            name: op.name
+          },
+          quantity: op.quantity,
+          unitprice: op.price,
+          amount: op.amount,
+        }
+      })
+      res.status(200).send(sales_order);
     } catch (e) {
       console.log(e);
       res.status(500).send(e);
