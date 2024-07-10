@@ -1505,7 +1505,7 @@ const getVenueData = () => {
 const getTransferData = (fromDate: string, toDate: string) => {
   return new Promise(resolve => {
     let transfer_data: any = {};
-    base('BSC Transfer Table').select({
+    base('Bar To Server Transfers').select({
       fields: ["Identity", "Transfer Amount"],
       maxRecords: 1000,
       view: "Grid view",
@@ -1697,6 +1697,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   eventTips = !isEvent ? (await getEventTips(fromDate, toDate) || {}) : {};
   partialBuyoutDates = await getPartialBuyoutDateData(fromDate, toDate) || {};
   console.log(`Getting 7shift Report from ${fromDate} to ${toDate}` + (locationId ? ` For ${locationId}` : ''));
+  let sql_str_2 = 'INSERT INTO server2bar_contribution (identity, day, contribution, contribution_pm, location) VALUES ';
 
   const options = {
     method: 'GET',
@@ -1823,6 +1824,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         };
 
         let middayObj: any = {};
+        let isDoubleShifts: any = {};
+
         if (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) {
           for (let user of users) {
             for (let role of user.roles.filter((rl: any, index: number) =>
@@ -1837,9 +1840,16 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               role_name = getRoleName(role_name, role.location_label);
               let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
               let airtable_id = `${trading_day.date}_${id}`;
-              for (let shift of shifts.filter((sh: any) =>
-                sh.location_label === acc.location && getRoleName(sh.role_label, sh.location_label) === getRoleName(role.role_label, role.location_label) && sh.date.split(" ")[0] === trading_day.date)) {
-                middayObj[airtable_id] = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 18 : acc.location_id === '361814' ? 15 : 14) ? 'am' : 'pm' : null
+              let shifts_day = shifts.filter((sh: any) =>
+                sh.location_label === acc.location && getRoleName(sh.role_label, sh.location_label) === getRoleName(role.role_label, role.location_label) && sh.date.split(" ")[0] === trading_day.date);
+              if (shifts_day.length > 1) {
+                isDoubleShifts[airtable_id] = true;
+                middayObj[airtable_id] = 'am';
+                middayObj[airtable_id + '_pm'] = 'pm';
+              } else {
+                for (let shift of shifts_day) {
+                  middayObj[airtable_id] = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '361814' ? 15 : 14) ? 'am' : 'pm' : null
+                }
               }
             }
           }
@@ -1898,7 +1908,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
-          let midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) ? (middayObj[airtable_id] || ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 18 : acc.location_id === '361814' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm')) : null;
+          let midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '361814' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
+          let isDoubleShift = isDoubleShifts[airtable_id];
+          if (isDoubleShift && midday == 'pm') {
+            airtable_id += '_pm';
+          }
+          if (middayObj[airtable_id]) {
+            midday = middayObj[airtable_id]
+          }
+
           let total_tips = 0;
 
           if (!airtable_data[airtable_id]) {
@@ -1926,7 +1944,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               "Service Charge": 0,
               "Service Fee": 0,
               "Allocated Service Fee": 0,
-              "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [{ id: venue_data[`${weekday}_${acc.location}`] }] : []
+              "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [{ id: venue_data[`${weekday}_${acc.location}`] }] : [],
+              "Is Double Shift?": isDoubleShift || false
             }
           }
 
@@ -2066,6 +2085,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         if (additionalTips[trading_day.date + "_" + acc.location]) {
           for (let additional_tip_data of additionalTips[trading_day.date + "_" + acc.location]) {
             let airtable_id = additional_tip_data['identity'];
+            let isDoubleShift = isDoubleShifts[airtable_id];
+            if (isDoubleShift && additional_tip_data['midday'] == 'pm') {
+              airtable_id += '_pm';
+            }
             if (isEvent && additional_tip_data['type'] !== 'Service Charge') continue;
             if (!airtable_data[airtable_id]) {
               airtable_data[airtable_id] = {
@@ -2092,7 +2115,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 "Service Charge": 0,
                 "Service Fee": 0,
                 "Allocated Service Fee": 0,
-                "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [{ id: venue_data[`${weekday}_${acc.location}`] }] : []
+                "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [{ id: venue_data[`${weekday}_${acc.location}`] }] : [],
+                "Is Double Shift?": isDoubleShift || false
               }
             }
             if (additional_tip_data) {
@@ -2183,221 +2207,100 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             let midday;
             for (let shift of shifts.filter((sh: any) =>
               sh.location_label === acc.location && getRoleName(sh.role_label, sh.location_label) === getRoleName(role.role_label, role.location_label) && sh.date.split(" ")[0] === trading_day.date)) {
-              total_hours += Math.round(shift.total.total_hours * 100) / 100;
-              regular_hours += Math.round(shift.total.regular_hours * 100) / 100;
-              ot_hours += Math.round(shift.total.non_premium_overtime_hours * 100) / 100;
-              dot_hours += Math.round(shift.total.premium_overtime_hours * 100) / 100;
-              compliance_exceptions_pay += Math.round(shift.total.compliance_exceptions_pay * 100) / 100;
-              total_pay += Math.round(shift.total.total_pay * 100) / 100;
+              total_hours = Math.round(shift.total.total_hours * 100) / 100;
+              regular_hours = Math.round(shift.total.regular_hours * 100) / 100;
+              ot_hours = Math.round(shift.total.non_premium_overtime_hours * 100) / 100;
+              dot_hours = Math.round(shift.total.premium_overtime_hours * 100) / 100;
+              compliance_exceptions_pay = Math.round(shift.total.compliance_exceptions_pay * 100) / 100;
+              total_pay = Math.round(shift.total.total_pay * 100) / 100;
               if (!shift.role_label.includes('Event')) {
-                total_hours_point += Math.round(shift.total.total_hours * 100) / 100;
+                total_hours_point = Math.round(shift.total.total_hours * 100) / 100;
               }
-              midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 18 : acc.location_id === '361814' ? 15 : 14) ? 'am' : 'pm' : null
-            }
-            let role_name = role.location_label === 'Slab BBQ LA' ?
-              (role.role_label === 'Manager' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
-              : role.location_label === 'Slab BBQ Pasadena' ?
-                (['12065', '17414', '19557'].includes(user.user.employee_id) ? role.role_label : 'Server')
-                : role.role_label;
+              midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '361814' ? 15 : 14) ? 'am' : 'pm' : null
 
-            role_name = getRoleName(role_name, role.location_label);
+              let role_name = role.location_label === 'Slab BBQ LA' ?
+                (role.role_label === 'Manager' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
+                : role.location_label === 'Slab BBQ Pasadena' ?
+                  (['12065', '17414', '19557'].includes(user.user.employee_id) ? role.role_label : 'Server')
+                  : role.role_label;
 
-            let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
-            let airtable_id = `${trading_day.date}_${id}`;
+              role_name = getRoleName(role_name, role.location_label);
 
-            if (!airtable_data[airtable_id]) {
-              airtable_data[airtable_id] = {
-                "Employee": [],
-                "Location": acc.location,
-                'Role Name': role_name,
-                "Week Beginning": weekday,
-                "Day": trading_day.date,
-                "Midday": midday,
-                "Reg Hours": 0,
-                "OT Hours": 0,
-                "DOT Hours": 0,
-                "Total Hours": 0,
-                "Exceptions Pay": 0,
-                "Total Pay": 0,
-                "Cash Tips": 0,
-                "Card Tips": 0,
-                "AutoGrat": 0,
-                "Total Tips": 0,
-                "Point": 0,
-                "Reason": null,
-                "Override Point": null,
-                "Final Tips": 0,
-                "Service Charge": 0,
-                "Service Fee": 0,
-                "Allocated Service Fee": 0,
-                "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [{ id: venue_data[`${weekday}_${acc.location}`] }] : []
+              let id = `${user.user['employee_id']}_${user.user['first_name'].trim()}_${acc.location}_${role_name}`;
+              let airtable_id = `${trading_day.date}_${id}`;
+              let isDoubleShift = isDoubleShifts[airtable_id];
+              if (isDoubleShift && midday === 'pm') {
+                airtable_id += '_pm';
               }
-            } else {
-              airtable_data[airtable_id]['Midday'] = midday;
-            }
 
-            airtable_data[airtable_id]["Reg Hours"] += Math.round(regular_hours * 100) / 100;
-            airtable_data[airtable_id]["OT Hours"] += Math.round(ot_hours * 100) / 100;
-            airtable_data[airtable_id]["DOT Hours"] += Math.round(dot_hours * 100) / 100;
-            airtable_data[airtable_id]["Total Hours"] += Math.round(total_hours * 100) / 100;
-            airtable_data[airtable_id]["Exceptions Pay"] += Math.round(compliance_exceptions_pay * 100) / 100;
-            airtable_data[airtable_id]["Total Pay"] += Math.round(total_pay * 100) / 100;
-
-            if (id === 'n/a6_Ada_Bootsy Bellows_Barback') {
-              continue;
-            }
-
-            let daily_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
-            if (midday === 'am') {
-              daily_pts = Math.round(total_hours_point / 4 * 100) / 100;
-            }
-
-            let pts = 0;
-            let over_point;
-            if (overpoint_data[airtable_id]) {
-              over_point = overpoint_data[airtable_id]['over_point'];
-              console.log(airtable_id, over_point);
-            }
-            daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
-
-            // Exception Tip Distribution For Delilah Miami Training Roles
-            if (acc.location === 'Delilah Miami' && trading_day.date >= '2023-12-08' && trading_day.date <= '2023-12-10') {
-              role_name = role_name.replace(' Training', '');
-            }
-
-            switch (role_name) {
-              case 'Event Server':
-              case 'Events Server':
-              case 'Server':
-              case 'Sommelier':
-              case 'Lead Sommelier':
-              case 'Events Sommelier': { //Server pool
-                if (event.tips > 0 && midday !== 'pm') {
-                  pts = total_hours > 0 ? 1 : 0;
-                  if (over_point === 0) break;
-                  event.pts += over_point || (total_hours > 0 ? 1 : 0);
-                } else if (event.tips_pm > 0 && midday === 'pm') {
-                  pts = total_hours > 0 ? 1 : 0;
-                  if (over_point === 0) break;
-                  event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
-                } else if (acc.type === 'nightclub1' && midday === 'pm') {
-                  pts = daily_pts;
-                  if (over_point === 0) break;
-                  serverPool.pts_pm += over_point || daily_pts;
-                } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
-                  pts = daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    serverPool.pts_pm += over_point || daily_pts;
-                  } else {
-                    serverPool.pts += over_point || daily_pts;
-                  }
-                } else {
-                  pts = daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    serverPool.count_pm += total_hours_point > 0 ? 1 : 0;
-                    serverPool.pts_pm += over_point || daily_pts;
-                  } else {
-                    serverPool.count += total_hours_point > 0 ? 1 : 0;
-                    serverPool.pts += over_point || daily_pts;
-                  }
+              if (!airtable_data[airtable_id]) {
+                airtable_data[airtable_id] = {
+                  "Employee": [],
+                  "Location": acc.location,
+                  'Role Name': role_name,
+                  "Week Beginning": weekday,
+                  "Day": trading_day.date,
+                  "Midday": midday,
+                  "Reg Hours": 0,
+                  "OT Hours": 0,
+                  "DOT Hours": 0,
+                  "Total Hours": 0,
+                  "Exceptions Pay": 0,
+                  "Total Pay": 0,
+                  "Cash Tips": 0,
+                  "Card Tips": 0,
+                  "AutoGrat": 0,
+                  "Total Tips": 0,
+                  "Point": 0,
+                  "Reason": null,
+                  "Override Point": null,
+                  "Final Tips": 0,
+                  "Service Charge": 0,
+                  "Service Fee": 0,
+                  "Allocated Service Fee": 0,
+                  "Venue Weekly Data": venue_data[`${weekday}_${acc.location}`] ? [{ id: venue_data[`${weekday}_${acc.location}`] }] : [],
+                  "Is Double Shift?": isDoubleShift || false
                 }
-                break;
+              } else {
+                airtable_data[airtable_id]['Midday'] = midday;
               }
-              case 'Lead Bartender':
-              case 'Event Bartender':
-              case 'Events Bartender':
-              case 'Bartender':
-              case 'Service Bar': { //Bartender pool
-                if (event.tips > 0 && midday !== 'pm') {
-                  pts = total_hours > 0 ? 1 : 0;
-                  if (over_point === 0) break;
-                  event.pts += over_point || (total_hours > 0 ? 1 : 0);
-                } else if (event.tips_pm > 0 && midday === 'pm') {
-                  pts = total_hours > 0 ? 1 : 0;
-                  if (over_point === 0) break;
-                  event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
-                } else if (acc.type === 'nightclub1' && midday === 'pm') {
-                  pts = daily_pts;
-                  if (over_point === 0) break;
-                  bartenderPool.pts_pm += over_point || daily_pts;
-                } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
-                  pts = daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    bartenderPool.pts_pm += over_point || daily_pts;
-                  } else {
-                    bartenderPool.pts += over_point || daily_pts;
-                  }
-                } else {
-                  pts = daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    bartenderPool.count_pm += total_hours_point > 0 ? 1 : 0;
-                    bartenderPool.pts_pm += over_point || daily_pts;
-                  } else {
-                    bartenderPool.count += total_hours_point > 0 ? 1 : 0;
-                    bartenderPool.pts += over_point || daily_pts;
-                  }
-                }
-                break;
+
+              airtable_data[airtable_id]["Reg Hours"] += Math.round(regular_hours * 100) / 100;
+              airtable_data[airtable_id]["OT Hours"] += Math.round(ot_hours * 100) / 100;
+              airtable_data[airtable_id]["DOT Hours"] += Math.round(dot_hours * 100) / 100;
+              airtable_data[airtable_id]["Total Hours"] += Math.round(total_hours * 100) / 100;
+              airtable_data[airtable_id]["Exceptions Pay"] += Math.round(compliance_exceptions_pay * 100) / 100;
+              airtable_data[airtable_id]["Total Pay"] += Math.round(total_pay * 100) / 100;
+
+              if (id === 'n/a6_Ada_Bootsy Bellows_Barback') {
+                continue;
               }
-              case 'Event Busser':
-              case 'Busser':
-              case 'Support':
-              case 'Table Server Assistant':
-              case 'TSA': {
-                if (event.tips > 0 && midday !== 'pm') {
-                  if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
-                    pts = total_hours > 0 ? 1 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || (total_hours > 0 ? 1 : 0);
-                  } else {
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                  }
-                } else if (event.tips_pm > 0 && midday === 'pm') {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                } else if (acc.type == 'restaurant') {
-                  pts = (0.4 * daily_pts);
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    busserRunnerPool.pts_pm += over_point || (0.4 * daily_pts);
-                  } else {
-                    busserRunnerPool.pts += over_point || (0.4 * daily_pts);
-                  }
-                } else if (acc.type == 'restaurant1') {
-                  pts = (0.4 * daily_pts);
-                  if (over_point === 0) break;
-                  serverPool.pts += over_point || (0.4 * daily_pts);
-                } else if (acc.type == 'nightclub') {
-                  pts = 0.4 * daily_pts;
-                  if (over_point === 0) break;
-                  busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
-                  busserRunnerPool.pts += over_point || (0.4 * daily_pts);
-                  if (airtable_id === '2023-08-11_200025_James_SHOREbar_Support'
-                    || airtable_id === '2023-08-12_200025_James_SHOREbar_Support'
-                    || airtable_id === '2023-08-19_200025_James_SHOREbar_Support') {
-                    barbackPool.count += 0.5;
-                  }
-                } else if (acc.type === 'nightclub1') {
-                  pts = 0.4 * daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    serverPool.pts_pm += over_point || (0.4 * daily_pts);
-                  } else {
-                    serverPool.pts += over_point || (0.4 * daily_pts);
-                  }
-                }
-                break;
+
+              let daily_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
+              if (midday === 'am') {
+                daily_pts = Math.round(total_hours_point / 4 * 100) / 100;
               }
-              case 'Event Runner':
-              case 'Runner': {
-                if (acc.type == 'restaurant2') {
+
+              let pts = 0;
+              let over_point;
+              if (overpoint_data[airtable_id]) {
+                over_point = overpoint_data[airtable_id]['over_point'];
+                console.log(airtable_id, over_point);
+              }
+              daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
+
+              // Exception Tip Distribution For Delilah Miami Training Roles
+              if (acc.location === 'Delilah Miami' && trading_day.date >= '2023-12-08' && trading_day.date <= '2023-12-10') {
+                role_name = role_name.replace(' Training', '');
+              }
+
+              switch (role_name) {
+                case 'Event Server':
+                case 'Events Server':
+                case 'Server':
+                case 'Sommelier':
+                case 'Lead Sommelier':
+                case 'Events Sommelier': { //Server pool
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
@@ -2406,186 +2309,312 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     pts = total_hours > 0 ? 1 : 0;
                     if (over_point === 0) break;
                     event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
-                  } else {
-                    pts = (0.55 * daily_pts);
+                  } else if (acc.type === 'nightclub1' && midday === 'pm') {
+                    pts = daily_pts;
+                    if (over_point === 0) break;
+                    serverPool.pts_pm += over_point || daily_pts;
+                  } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
+                    pts = daily_pts;
                     if (over_point === 0) break;
                     if (midday === 'pm') {
-                      serverPool.pts_pm += over_point || (0.55 * daily_pts);
+                      serverPool.pts_pm += over_point || daily_pts;
                     } else {
-                      serverPool.pts += over_point || (0.55 * daily_pts);
+                      serverPool.pts += over_point || daily_pts;
+                    }
+                  } else {
+                    pts = daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      serverPool.count_pm += total_hours_point > 0 ? 1 : 0;
+                      serverPool.pts_pm += over_point || daily_pts;
+                    } else {
+                      serverPool.count += total_hours_point > 0 ? 1 : 0;
+                      serverPool.pts += over_point || daily_pts;
                     }
                   }
+                  break;
                 }
-                break;
-              }
-              case 'Busser':
-              case 'Server Assistant':
-              case 'Event Server Assistant': {
-                if (event.tips > 0 && midday !== 'pm') {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                } else if (event.tips_pm > 0 && midday === 'pm') {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                } else {
-                  if (acc.type == 'restaurant2') {
-                    pts = (0.45 * daily_pts);
+                case 'Lead Bartender':
+                case 'Event Bartender':
+                case 'Events Bartender':
+                case 'Bartender':
+                case 'Service Bar': { //Bartender pool
+                  if (event.tips > 0 && midday !== 'pm') {
+                    pts = total_hours > 0 ? 1 : 0;
+                    if (over_point === 0) break;
+                    event.pts += over_point || (total_hours > 0 ? 1 : 0);
+                  } else if (event.tips_pm > 0 && midday === 'pm') {
+                    pts = total_hours > 0 ? 1 : 0;
+                    if (over_point === 0) break;
+                    event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
+                  } else if (acc.type === 'nightclub1' && midday === 'pm') {
+                    pts = daily_pts;
+                    if (over_point === 0) break;
+                    bartenderPool.pts_pm += over_point || daily_pts;
+                  } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
+                    pts = daily_pts;
                     if (over_point === 0) break;
                     if (midday === 'pm') {
-                      serverPool.pts_pm += over_point || (0.45 * daily_pts);
+                      bartenderPool.pts_pm += over_point || daily_pts;
                     } else {
-                      serverPool.pts += over_point || (0.45 * daily_pts);
+                      bartenderPool.pts += over_point || daily_pts;
                     }
+                  } else {
+                    pts = daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      bartenderPool.count_pm += total_hours_point > 0 ? 1 : 0;
+                      bartenderPool.pts_pm += over_point || daily_pts;
+                    } else {
+                      bartenderPool.count += total_hours_point > 0 ? 1 : 0;
+                      bartenderPool.pts += over_point || daily_pts;
+                    }
+                  }
+                  break;
+                }
+                case 'Event Busser':
+                case 'Busser':
+                case 'Support':
+                case 'Table Server Assistant':
+                case 'TSA': {
+                  if (event.tips > 0 && midday !== 'pm') {
+                    if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
+                      pts = total_hours > 0 ? 1 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 1 : 0);
+                    } else {
+                      pts = total_hours > 0 ? 0.5 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    }
+                  } else if (event.tips_pm > 0 && midday === 'pm') {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (acc.type == 'restaurant') {
                     pts = (0.4 * daily_pts);
                     if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      busserRunnerPool.pts_pm += over_point || (0.4 * daily_pts);
+                    } else {
+                      busserRunnerPool.pts += over_point || (0.4 * daily_pts);
+                    }
+                  } else if (acc.type == 'restaurant1') {
+                    pts = (0.4 * daily_pts);
+                    if (over_point === 0) break;
+                    serverPool.pts += over_point || (0.4 * daily_pts);
+                  } else if (acc.type == 'nightclub') {
+                    pts = 0.4 * daily_pts;
+                    if (over_point === 0) break;
+                    busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
                     busserRunnerPool.pts += over_point || (0.4 * daily_pts);
+                    if (airtable_id === '2023-08-11_200025_James_SHOREbar_Support'
+                      || airtable_id === '2023-08-12_200025_James_SHOREbar_Support'
+                      || airtable_id === '2023-08-19_200025_James_SHOREbar_Support') {
+                      barbackPool.count += 0.5;
+                    }
+                  } else if (acc.type === 'nightclub1') {
+                    pts = 0.4 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      serverPool.pts_pm += over_point || (0.4 * daily_pts);
+                    } else {
+                      serverPool.pts += over_point || (0.4 * daily_pts);
+                    }
                   }
+                  break;
                 }
-                break;
-              }
-              case 'Host':
-              case 'Events Reception':
-              case 'Event Reception':
-              case 'Reception':
-              case 'Receptionist':
-              case 'Lead Host':
-              case 'Event Host':
-              case 'Anchor Host': {
-                if (event.tips > 0 && midday !== 'pm') {
+                case 'Event Runner':
+                case 'Runner': {
                   if (acc.type == 'restaurant2') {
-                    pts = total_hours > 0 ? 0.15 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || (total_hours > 0 ? 0.15 : 0);
-                  } else {
-                    pts = total_hours > 0 ? 0.25 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || (total_hours > 0 ? 0.25 : 0);
+                    if (event.tips > 0 && midday !== 'pm') {
+                      pts = total_hours > 0 ? 1 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 1 : 0);
+                    } else if (event.tips_pm > 0 && midday === 'pm') {
+                      pts = total_hours > 0 ? 1 : 0;
+                      if (over_point === 0) break;
+                      event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
+                    } else {
+                      pts = (0.55 * daily_pts);
+                      if (over_point === 0) break;
+                      if (midday === 'pm') {
+                        serverPool.pts_pm += over_point || (0.55 * daily_pts);
+                      } else {
+                        serverPool.pts += over_point || (0.55 * daily_pts);
+                      }
+                    }
                   }
-                } else if (event.tips_pm > 0 && midday === 'pm') {
-                  if (acc.type == 'restaurant2') {
-                    pts = total_hours > 0 ? 0.15 : 0;
-                    if (over_point === 0) break;
-                    event.pts_pm += over_point || (total_hours > 0 ? 0.15 : 0);
-                  } else {
-                    pts = total_hours > 0 ? 0.25 : 0;
-                    if (over_point === 0) break;
-                    event.pts_pm += over_point || (total_hours > 0 ? 0.25 : 0);
-                  }
-                } else if (acc.type == 'restaurant') {
-                  pts = 0.1 * daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    receptionHostPool.pts_pm += over_point || (0.1 * daily_pts);
-                  }
-                  else {
-                    receptionHostPool.pts += over_point || (0.1 * daily_pts);
-                  }
-                } else if (acc.type == 'restaurant1') {
-                  pts = 0.1 * daily_pts;
-                  if (over_point === 0) break;
-                  serverPool.pts += over_point || (0.1 * daily_pts);
-                } else if (acc.type === 'nightclub1') {
-                  pts = 0.1 * daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    serverPool.pts_pm += over_point || (0.1 * daily_pts);
-                  } else {
-                    serverPool.pts += over_point || (0.1 * daily_pts);
-                  }
+                  break;
                 }
-                break;
-              }
-              case 'Barback':
-              case 'Event Barback': {
-                if (event.tips > 0 && midday !== 'pm') {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                } else if (event.tips_pm > 0 && midday === 'pm') {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                } else if (acc.type === 'nightclub1') {
-                  pts = 0.5 * daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    bartenderPool.pts_pm += over_point || (0.5 * daily_pts);
-                  } else {
-                    bartenderPool.pts += over_point || (0.5 * daily_pts);
-                  }
-                } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
-                  pts = 0.5 * daily_pts;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    bartenderPool.pts_pm += over_point || (0.5 * daily_pts);
-                  } else {
-                    bartenderPool.pts += over_point || (0.5 * daily_pts);
-                  }
-                } else {
-                  pts = daily_pts / 2;
-                  if (over_point === 0) break;
-                  if (midday === 'pm') {
-                    barbackPool.count_pm += total_hours_point > 0 ? 0.5 : 0;
-                    barbackPool.pts_pm += over_point || (daily_pts / 2);
-                  } else {
-                    barbackPool.count += total_hours_point > 0 ? 0.5 : 0;
-                    barbackPool.pts += over_point || (daily_pts / 2);
-                  }
-                }
-                break;
-              }
-              case 'Cooks':
-              case 'Line Cook':
-              case 'Prep Cook':
-              case 'Dishwasher':
-              case 'Pastry Prep Cook':
-              case 'Porter':
-              case 'Lead Prep Cook': {
-                if (acc.type === 'nightclub1' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31' && trading_day.date !== '2024-02-05' && trading_day.date !== '2024-03-15')) {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
+                case 'Busser':
+                case 'Server Assistant':
+                case 'Event Server Assistant': {
                   if (event.tips > 0 && midday !== 'pm') {
-                    event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
-                  } else if (event.tips_pm > 0 && midday === 'pm') {
-                    event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                  } else {
-                    bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                  }
-                } else if (event.tips > 0) {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                }
-                break;
-              }
-              case 'Sushi Cook': {
-                if (acc.type === 'nightclub1') {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  if (event.tips > 0 && midday !== 'pm') {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
                     event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
                     event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else {
-                    sushiPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    if (acc.type == 'restaurant2') {
+                      pts = (0.45 * daily_pts);
+                      if (over_point === 0) break;
+                      if (midday === 'pm') {
+                        serverPool.pts_pm += over_point || (0.45 * daily_pts);
+                      } else {
+                        serverPool.pts += over_point || (0.45 * daily_pts);
+                      }
+                    } else if (acc.type == 'restaurant') {
+                      pts = (0.4 * daily_pts);
+                      if (over_point === 0) break;
+                      busserRunnerPool.pts += over_point || (0.4 * daily_pts);
+                    }
                   }
+                  break;
                 }
-                break;
+                case 'Host':
+                case 'Events Reception':
+                case 'Event Reception':
+                case 'Reception':
+                case 'Receptionist':
+                case 'Lead Host':
+                case 'Event Host':
+                case 'Anchor Host': {
+                  if (event.tips > 0 && midday !== 'pm') {
+                    if (acc.type == 'restaurant2') {
+                      pts = total_hours > 0 ? 0.15 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 0.15 : 0);
+                    } else {
+                      pts = total_hours > 0 ? 0.25 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 0.25 : 0);
+                    }
+                  } else if (event.tips_pm > 0 && midday === 'pm') {
+                    if (acc.type == 'restaurant2') {
+                      pts = total_hours > 0 ? 0.15 : 0;
+                      if (over_point === 0) break;
+                      event.pts_pm += over_point || (total_hours > 0 ? 0.15 : 0);
+                    } else {
+                      pts = total_hours > 0 ? 0.25 : 0;
+                      if (over_point === 0) break;
+                      event.pts_pm += over_point || (total_hours > 0 ? 0.25 : 0);
+                    }
+                  } else if (acc.type == 'restaurant') {
+                    pts = 0.1 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      receptionHostPool.pts_pm += over_point || (0.1 * daily_pts);
+                    }
+                    else {
+                      receptionHostPool.pts += over_point || (0.1 * daily_pts);
+                    }
+                  } else if (acc.type == 'restaurant1') {
+                    pts = 0.1 * daily_pts;
+                    if (over_point === 0) break;
+                    serverPool.pts += over_point || (0.1 * daily_pts);
+                  } else if (acc.type === 'nightclub1') {
+                    pts = 0.1 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      serverPool.pts_pm += over_point || (0.1 * daily_pts);
+                    } else {
+                      serverPool.pts += over_point || (0.1 * daily_pts);
+                    }
+                  }
+                  break;
+                }
+                case 'Barback':
+                case 'Event Barback': {
+                  if (event.tips > 0 && midday !== 'pm') {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                  } else if (event.tips_pm > 0 && midday === 'pm') {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                  } else if (acc.type === 'nightclub1') {
+                    pts = 0.5 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      bartenderPool.pts_pm += over_point || (0.5 * daily_pts);
+                    } else {
+                      bartenderPool.pts += over_point || (0.5 * daily_pts);
+                    }
+                  } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
+                    pts = 0.5 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      bartenderPool.pts_pm += over_point || (0.5 * daily_pts);
+                    } else {
+                      bartenderPool.pts += over_point || (0.5 * daily_pts);
+                    }
+                  } else {
+                    pts = daily_pts / 2;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      barbackPool.count_pm += total_hours_point > 0 ? 0.5 : 0;
+                      barbackPool.pts_pm += over_point || (daily_pts / 2);
+                    } else {
+                      barbackPool.count += total_hours_point > 0 ? 0.5 : 0;
+                      barbackPool.pts += over_point || (daily_pts / 2);
+                    }
+                  }
+                  break;
+                }
+                case 'Cooks':
+                case 'Line Cook':
+                case 'Prep Cook':
+                case 'Dishwasher':
+                case 'Pastry Prep Cook':
+                case 'Porter':
+                case 'Lead Prep Cook': {
+                  if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    if (event.tips > 0 && midday !== 'pm') {
+                      event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
+                    } else if (event.tips_pm > 0 && midday === 'pm') {
+                      event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                    } else {
+                      bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    }
+                  } else if (event.tips > 0) {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                  }
+                  break;
+                }
+                case 'Sushi Cook': {
+                  if (acc.type === 'nightclub1') {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    if (event.tips > 0 && midday !== 'pm') {
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    } else if (event.tips_pm > 0 && midday === 'pm') {
+                      event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                    } else {
+                      sushiPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    }
+                  }
+                  break;
+                }
+              }
+
+              if (overpoint_data[airtable_id] && overpoint_data[airtable_id]['over_point'] !== pts) {
+                airtable_data[airtable_id]['Point'] = overpoint_data[airtable_id]['over_point'];
+                airtable_data[airtable_id]['Override Point'] = overpoint_data[airtable_id]['over_point'];
+                airtable_data[airtable_id]['Reason'] = overpoint_data[airtable_id]['reason'];
+
+              } else {
+                airtable_data[airtable_id]['Point'] += pts;
               }
             }
-
-            if (overpoint_data[airtable_id] && overpoint_data[airtable_id]['over_point'] !== pts) {
-              airtable_data[airtable_id]['Point'] = overpoint_data[airtable_id]['over_point'];
-              airtable_data[airtable_id]['Override Point'] = overpoint_data[airtable_id]['over_point'];
-              airtable_data[airtable_id]['Reason'] = overpoint_data[airtable_id]['reason'];
-
-            } else {
-              airtable_data[airtable_id]['Point'] += pts;
-            }
-
           }
         }
 
@@ -2634,14 +2663,14 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub1') {
-          if (transfer_data[trading_day.date + '_am']) {
-            let tmp_tips = Math.round(transfer_data[trading_day.date + '_am'] * 17) / 100;
+          if (transfer_data[acc.location + '_' + trading_day.date + '_am']) {
+            let tmp_tips = Math.round(transfer_data[acc.location + '_' + trading_day.date + '_am'] * 15) / 100;
             console.log('Transfer Amount: ' + trading_day.date + '_am', tmp_tips);
             serverPool.service_charge -= tmp_tips;
             bartenderPool.service_charge += tmp_tips;
           }
-          if (transfer_data[trading_day.date + '_pm']) {
-            let tmp_tips = Math.round(transfer_data[trading_day.date + '_pm'] * 17) / 100;
+          if (transfer_data[acc.location + '_' + trading_day.date + '_pm']) {
+            let tmp_tips = Math.round(transfer_data[acc.location + '_' + trading_day.date + '_pm'] * 15) / 100;
             console.log('Transfer Amount: ' + trading_day.date + '_pm', tmp_tips);
             serverPool.service_charge_pm -= tmp_tips;
             bartenderPool.service_charge_pm += tmp_tips;
@@ -2664,6 +2693,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         serverPool.tips -= temp_tips + busserRunnerPool.tips + receptionHostPool.tips;
         bartenderPool.tips_pm += temp_tips_pm;
         serverPool.tips_pm -= temp_tips_pm + busserRunnerPool.tips_pm + receptionHostPool.tips_pm;
+        sql_str_2 += `($$${trading_day.date}_${acc.location}$$, $$${trading_day.date}$$, ${temp_tips}, ${temp_tips_pm},$$${acc.location}$$),`;
 
         console.log('Date: ', trading_day.date);
         console.log('ServerPool: ', serverPool);
@@ -2703,16 +2733,16 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Pastry Prep Cook':
               case 'Porter':
               case 'Lead Prep Cook': {
-                if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31' && trading_day.date !== '2024-02-05' && trading_day.date !== '2024-03-15')) {
-                  final_tips = Math.round(event.tips * 0.01 * point / event.pts_boh * 100) / 100;
+                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                  final_tips = Math.round(event.tips * 0.05 * point / event.pts_boh * 100) / 100;
                 } else {
                   final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
                 }
                 break;
               }
               default: {
-                if (midday === 'am' || (acc.type === 'restaurant2' && (trading_day.date > '2023-12-14' || trading_day.date < '2023-12-12') && trading_day.date !== '2023-12-31' && trading_day.date !== '2024-02-05' && trading_day.date !== '2024-03-15')) {
-                  final_tips = Math.round(event.tips * 0.99 * point / event.pts * 100) / 100;
+                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                  final_tips = Math.round(event.tips * 0.95 * point / event.pts * 100) / 100;
                 } else {
                   final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
                 }
@@ -2727,11 +2757,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Pastry Prep Cook':
               case 'Porter':
               case 'Lead Prep Cook': {
-                final_tips = Math.round(event.tips_pm * 0.01 * point / event.pts_boh_pm * 100) / 100;
+                final_tips = Math.round(event.tips_pm * 0.05 * point / event.pts_boh_pm * 100) / 100;
                 break;
               }
               default: {
-                final_tips = Math.round(event.tips_pm * 0.99 * point / event.pts_pm * 100) / 100;
+                final_tips = Math.round(event.tips_pm * 0.95 * point / event.pts_pm * 100) / 100;
               }
             }
           } else {
@@ -3090,10 +3120,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   let converted_airtable_data: any[] = [];
   let sql_str = 'INSERT INTO reports' + (simulate ? '_simulation' : '') + ' (airtable_id, employee, midday, week_beginning, day, reg_hours, ot_hours, dot_hours, total_hours,'
     + 'exceptions_pay, total_pay, cash_tips, card_tips, autograt, point, over_point, reason, total_tips, service_charge, service_fee, allocated_service_fee, final_tips, location,'
-    + 'role, category) VALUES';
+    + 'role, category, is_double_shift) VALUES';
 
   for (let key of Object.keys(airtable_data)) {
-    let employee_id = key.slice(11);
+    let employee_id = key.includes('_pm') ? key.slice(0, -3).slice(11) : key.slice(11);
     let row = airtable_data[key];
     let category = 'FOH';
     switch (row['Role Name']) {
@@ -3121,7 +3151,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
       sql_str += `($$${key}$$, $$${employee_id}$$, $$${row['Midday'] || ''}$$, $$${row['Week Beginning']}$$, $$${row['Day']}$$,`
         + `${row['Reg Hours']},${row['OT Hours']},${row['DOT Hours']},${row['Total Hours']},${row['Exceptions Pay']},${row['Total Pay']},`
         + `${row['Cash Tips']},${row['Card Tips']},${row['AutoGrat']},${row['Point']},${row['Override Point']},$$${row['Reason'] || ''}$$,`
-        + `${row['Total Tips']},${row['Service Charge']},${row['Service Fee']},${row['Allocated Service Fee']},${row['Final Tips']},$$${row['Location']}$$,$$${row['Role Name']}$$,$$${category}$$),`;
+        + `${row['Total Tips']},${row['Service Charge']},${row['Service Fee']},${row['Allocated Service Fee']},${row['Final Tips']},$$${row['Location']}$$,$$${row['Role Name']}$$,$$${category}$$, ${row['Is Double Shift?'] || false}),`;
       delete row['Role Name'];
       delete row['Location'];
       if (simulate || isEvent) {
@@ -3142,6 +3172,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   }
   console.log('Get Airtable Data: ', converted_airtable_data.length);
   sql_str = sql_str.slice(0, sql_str.length - 1) + ';';
+  sql_str_2 = sql_str_2.slice(0, sql_str_2.length - 1) + ';';
 
   try {
     // Delete Old Records;
@@ -3154,6 +3185,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
     if (!isEvent) { // Not For Delilah Miami Partial Event
       await db.query(`DELETE from reports${simulate ? '_simulation' : ''} WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${location}\';` : ";"), []);
       await db.query(sql_str, []);
+
+      await db.query(`DELETE from server2bar_contribution WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${location}\';` : ";"), []);
+      await db.query(sql_str_2, []);
     }
 
 
@@ -3551,14 +3585,14 @@ export const listenFromWebhook = functions.runWith(runtimeOpts).https.onRequest(
   }
 })
 
-export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('0 * * * *').onRun(async () => {
+export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('01 * * * *').onRun(async () => {
 
   let salesOrderItems: any[] = [];
   let count = 200, start = 1;
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 4 * 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3 * 3600000).toISOString()}`,
       // url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed`,
       headers: {
         Accept: 'application/json',
@@ -3566,7 +3600,17 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
       }
     };
 
-    let res: any = await doRequest(options);
+    let res: any = [], ct = 3;
+    while (ct) {
+      try {
+        res = await doRequest(options);
+        ct = 0;
+      } catch (e) {
+        console.log('Sleep 1s');
+        await sleep(1000);
+        ct--;
+      }
+    }
     console.log(`Got SOS Sales Orders ${res.count}`);
     count = res.count;
     start += 200;
@@ -3612,14 +3656,69 @@ export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.sch
 });
 
 
+const createRecordsOnAirtable = (tableName: string, records: any[]) => {
+  return new Promise(async (resolve) => {
+    while (records.length) {
+      await cin7_base(tableName).create(records.slice(0, 10), function (err: any) {
+        if (err) {
+          console.error(err);
+          resolve('Failed');
+        }
+      });
+      records = records.slice(10);
+    }
+    console.log('Created Successfully!');
+    resolve('Success');
+  })
+}
+
+const updateRecordsOnAirtable = (tableName: string, records: any[]) => {
+  return new Promise(async (resolve) => {
+    while (records.length) {
+      await cin7_base(tableName).update(records.slice(0, 10), function (err: any) {
+        if (err) {
+          console.error(err);
+          resolve('Failed');
+        }
+      });
+      records = records.slice(10);
+    }
+    console.log('Updated Successfully!');
+    resolve('Success');
+  })
+}
+
+const listRecordsOnAirtable = (tableName: string, fields: string[], maxRecords: number) => {
+  return new Promise(async (resolve) => {
+    let results: any[] = [];
+    cin7_base(tableName).select({
+      fields: fields,
+      maxRecords: maxRecords,
+      view: "Grid view"
+    }).eachPage(function page(records: any[], fetchNextPage: any) {
+      results = [...results, ...records];
+      fetchNextPage();
+    }, function done(err: any) {
+      if (err) { console.error(err); resolve([]); }
+      console.log(`Get Records From ${tableName} Table`);
+      resolve(results);
+    });
+  })
+}
+
+const sleep = (delay: number) => new Promise((resolve) => setTimeout(resolve, delay))
+
 export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('0 * * * *').onRun(async () => {
 
+  let existingOrders: any = await listRecordsOnAirtable('SOS Purchase Orders', ['Id'], 10000);
   let purchaseOrderItems: any[] = [];
+  let newPOs: any[] = [];
+  let oldPOs: any[] = []
   let count = 200, start = 1;
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 6 * 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3 * 3600000).toISOString()}`,
       // url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}`,
       headers: {
         Accept: 'application/json',
@@ -3627,11 +3726,62 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
       }
     };
 
-    let res: any = await doRequest(options);
+    let res: any = [], ct = 3;
+    while (ct) {
+      try {
+        res = await doRequest(options);
+        ct = 0;
+      } catch (e) {
+        console.log('Sleep 1s');
+        await sleep(1000);
+        ct--;
+      }
+    }
     console.log(`Got SOS Purchase Orders ${res.count}`);
     count = res.count;
     start += 200;
     for (let order of res.data) {
+      let getOrder = existingOrders.find((od: any) => od.get('Id') === order.id);
+      if (getOrder) {
+        oldPOs = [...oldPOs, {
+          id: getOrder.getId(),
+          fields: {
+            "Id": order.id,
+            "Number": Number(order.number),
+            "Date": order.date,
+            "Vendor Name": order.vendor ? order.vendor.name : '',
+            "Location": order.location ? order.location.name : '',
+            "Received Status": order.receivedStatus ? order.receivedStatus : null,
+            "Comment": order.comment,
+            "SubTotal": order.subTotal,
+            "TaxAmount": order.taxAmount,
+            "Total": order.total,
+            "Open Amount": order.openAmount,
+            "Closed": order.closed,
+            "Archived": order.archived,
+            "DropShip": order.dropship || false
+          }
+        }]
+      } else {
+        newPOs = [...newPOs, {
+          fields: {
+            "Id": order.id,
+            "Number": Number(order.number),
+            "Date": order.date,
+            "Vendor Name": order.vendor ? order.vendor.name : '',
+            "Location": order.location ? order.location.name : '',
+            "Comment": order.comment,
+            "Received Status": order.receivedStatus ? order.receivedStatus : null,
+            "SubTotal": order.subTotal,
+            "TaxAmount": order.taxAmount,
+            "Total": order.total,
+            "Open Amount": order.openAmount,
+            "Closed": order.closed,
+            "Archived": order.archived,
+            "DropShip": order.dropship || false
+          }
+        }]
+      }
       for (let orderItem of order.lines) {
         if (!orderItem.item) continue;
         purchaseOrderItems = [...purchaseOrderItems, {
@@ -3650,6 +3800,11 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
       }
     }
   }
+  console.log(`New Orders: ${newPOs.length}`);
+  await createRecordsOnAirtable('SOS Purchase Orders', newPOs);
+  console.log(`Existing Orders: ${oldPOs.length}`);
+  await updateRecordsOnAirtable('SOS Purchase Orders', oldPOs);
+
   console.log(`Total Order Items: ${purchaseOrderItems.length}`);
   // Create SOS Items on Airtable
   while (purchaseOrderItems.length > 0) {
@@ -3731,7 +3886,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
   let { fromDate, toDate, locationId } = req.query;
   let updated_after = '';
   if (!fromDate) {
-    fromDate = new Date(now.getTime() - 2 * 24 * 3600000).toISOString().split('T')[0];
+    fromDate = new Date(now.getTime() - 4 * 24 * 3600000).toISOString().split('T')[0];
     toDate = now.toISOString().split('T')[0];
     updated_after = new Date(now.getTime() - 6 * 3600000).toISOString();
   }
