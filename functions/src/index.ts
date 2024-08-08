@@ -286,6 +286,7 @@ const useQuoteHTML = (body: any) => {
       }
 
       table {
+        margin-top: ${body.calibration || 0}px;
         font-size: 8.5px;
         width: 100%;
         border-collapse: collapse;
@@ -378,6 +379,7 @@ const useQuoteHTML = (body: any) => {
     </div>
     <hr>
     <br>
+  
     <div class="d-flex">
       <div style="width: 50%;">
         <b>Customer:</b><br>
@@ -418,7 +420,7 @@ const useQuoteHTML = (body: any) => {
           <th width="10%">Previous Price</th>
           <th width="10%">Saving %</th>
           <th width="10%">Saving $</th>` : '') + (body.showDiscount ? `
-          <th width="10%">Discount</th>` : '') + (!body.is_price_comparison ? `
+          <th width="10%">Discount</th>` : '') + (!body.is_price_comparison && !body.is_stock_quote ? `
           <th width="10%">Sub Total</th>` : ``) + `          
         </tr></thead><tbody>`;
   for (let item of body.items) {
@@ -437,7 +439,7 @@ const useQuoteHTML = (body: any) => {
           <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
           <td>${item.previous_price ? (((item.previous_price - item.unit_price) / item.previous_price * 100).toFixed(1) + '%') : ''}</td>
           <td>${item.previous_price ? ('$' + (item.previous_price - item.unit_price).toFixed(2)) : ''}</td>` : '') + (body.showDiscount ? `
-          <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>` : '') + (!body.is_price_comparison ? `
+          <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>` : '') + (!body.is_price_comparison && !body.is_stock_quote ? `
           <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>` : ``) + `
         </tr>`;
   }
@@ -1368,16 +1370,16 @@ const locations: any = {
     full_shift: 6
   },
   // "282518": 
-  "The Peppermint Club": {
-    r365_code: 501,
-    paycome_code: "0OA78",
-    location: "The Peppermint Club",
-    user: "michael-green_peppermint",
-    password: "X1gVdkgypoWL",
-    type: "nightclub",
-    location_id: "282518",
-    full_shift: 5
-  },
+  // "The Peppermint Club": {
+  //   r365_code: 501,
+  //   paycome_code: "0OA78",
+  //   location: "The Peppermint Club",
+  //   user: "michael-green_peppermint",
+  //   password: "X1gVdkgypoWL",
+  //   type: "nightclub",
+  //   location_id: "282518",
+  //   full_shift: 5
+  // },
   // "283224": 
   // "Nate 'n Al's": {
   //   r365_code: 1004,
@@ -1423,9 +1425,9 @@ const locations: any = {
     r365_code: 802,
     paycome_code: "0OA80",
     location: "Keys Los Angeles",
-    user: "",
+    user: "upserve_the-keys-2",
     // user: "michael@hwoodgroup.com",
-    password: "hyfnyr-segKip-dywre4",
+    password: "qPNSgFpmEwx9",
     type: "nightclub",
     location_id: "404814",
     full_shift: 4
@@ -1968,7 +1970,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               }
             }
             if (check.zone === 'Sushi Bar') {
-              let temp_tips = Math.round(total_tips / 2 * 100) / 100;
+              let temp_tips = Math.round(total_tips * 0.7 * 100) / 100;
               sushiPool.tips += temp_tips;
               total_tips -= temp_tips;
               airtable_data[airtable_id]['Total Tips'] += temp_tips;
@@ -2430,11 +2432,11 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     if (event.tips > 0 && midday !== 'pm') {
                       pts = total_hours > 0 ? 1 : 0;
                       if (over_point === 0) break;
-                      event.pts += over_point || (total_hours > 0 ? 1 : 0);
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else if (event.tips_pm > 0 && midday === 'pm') {
                       pts = total_hours > 0 ? 1 : 0;
                       if (over_point === 0) break;
-                      event.pts_pm += over_point || (total_hours > 0 ? 1 : 0);
+                      event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else {
                       pts = (0.55 * daily_pts);
                       if (over_point === 0) break;
@@ -2573,21 +2575,21 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Pastry Prep Cook':
                 case 'Porter':
                 case 'Lead Prep Cook': {
-                  if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    if (event.tips > 0 && midday !== 'pm') {
-                      event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
-                    } else if (event.tips_pm > 0 && midday === 'pm') {
-                      event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                    } else {
-                      bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                    }
-                  } else if (event.tips > 0) {
+                  // if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                  //   pts = total_hours > 0 ? 0.5 : 0;
+                  //   if (over_point === 0) break;
+                  //   if (event.tips > 0 && midday !== 'pm') {
+                  //     event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
+                  //   } else if (event.tips_pm > 0 && midday === 'pm') {
+                  //     event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                  //   } else {
+                  //     bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                  //   }
+                  // } else if (event.tips > 0) {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
                     bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                  }
+                  // }
                   break;
                 }
                 case 'Sushi Cook': {
@@ -2733,19 +2735,21 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Pastry Prep Cook':
               case 'Porter':
               case 'Lead Prep Cook': {
-                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
-                  final_tips = Math.round(event.tips * 0.05 * point / event.pts_boh * 100) / 100;
-                } else {
-                  final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
-                }
+                // if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                //   final_tips = Math.round(event.tips * 0.05 * point / event.pts_boh * 100) / 100;
+                // } else {
+                //   final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                // }
+                final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
                 break;
               }
               default: {
-                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
-                  final_tips = Math.round(event.tips * 0.95 * point / event.pts * 100) / 100;
-                } else {
-                  final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
-                }
+                // if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                //   final_tips = Math.round(event.tips * 0.95 * point / event.pts * 100) / 100;
+                // } else {
+                //   final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+                // }
+                final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
               }
             }
           } else if (event.tips_pm > 0 && midday === 'pm') {
@@ -3323,9 +3327,9 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
     try {
       const { fromDate, toDate, locationId, simulate, isEvent } = req.query;
       let res: any = await getTipReport(fromDate, toDate, locationId, simulate, isEvent);
-      response.status(200).send(res);
+      response.status(200).send({status: 200, "message" : res});
     } catch (e) {
-      response.status(500).send(e);
+      response.status(500).send({status: 500, "message": e});
     }
 
   }
@@ -3708,7 +3712,7 @@ const listRecordsOnAirtable = (tableName: string, fields: string[], maxRecords: 
 
 const sleep = (delay: number) => new Promise((resolve) => setTimeout(resolve, delay))
 
-export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('0 * * * *').onRun(async () => {
+export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('every 15 minutes').onRun(async () => {
 
   let existingOrders: any = await listRecordsOnAirtable('SOS Purchase Orders', ['Id'], 10000);
   let purchaseOrderItems: any[] = [];
@@ -3747,7 +3751,7 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
           id: getOrder.getId(),
           fields: {
             "Id": order.id,
-            "Number": Number(order.number),
+            "Number": order.number,
             "Date": order.date,
             "Vendor Name": order.vendor ? order.vendor.name : '',
             "Location": order.location ? order.location.name : '',
@@ -3766,7 +3770,7 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
         newPOs = [...newPOs, {
           fields: {
             "Id": order.id,
-            "Number": Number(order.number),
+            "Number": order.number,
             "Date": order.date,
             "Vendor Name": order.vendor ? order.vendor.name : '',
             "Location": order.location ? order.location.name : '',
@@ -4396,7 +4400,7 @@ export const updatePickTicketsItemLines = functions.runWith(runtimeOpts).https.o
             name: op.name
           },
           quantity: op.quantity,
-          bin: null
+          bin: (lineItem && lineItem.bin) ? lineItem.bin : {"name": ".FEES"}
         }
       })
       res.status(200).send(pick_ticket);
