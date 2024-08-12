@@ -2378,6 +2378,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Busser':
                 case 'Support':
                 case 'Table Server Assistant':
+                case 'Event Runner':
+                case 'Runner':
                 case 'TSA': {
                   if (event.tips > 0 && midday !== 'pm') {
                     if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
@@ -2530,7 +2532,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Barback':
-                case 'Event Barback': {
+                case 'Event Barback':
+                case 'Events Barback': {
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
@@ -2586,9 +2589,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   //     bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   //   }
                   // } else if (event.tips > 0) {
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                  pts = total_hours > 0 ? 0.5 : 0;
+                  if (over_point === 0) break;
+                  bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   // }
                   break;
                 }
@@ -3327,9 +3330,9 @@ export const importSalesReportToAirtable = functions.runWith(runtimeOpts).https.
     try {
       const { fromDate, toDate, locationId, simulate, isEvent } = req.query;
       let res: any = await getTipReport(fromDate, toDate, locationId, simulate, isEvent);
-      response.status(200).send({status: 200, "message" : res});
+      response.status(200).send({ status: 200, "message": res });
     } catch (e) {
-      response.status(500).send({status: 500, "message": e});
+      response.status(500).send({ status: 500, "message": e });
     }
 
   }
@@ -3722,7 +3725,7 @@ export const importPurchaseOrderFromSOS = functions.runWith(runtimeOpts).pubsub.
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3 * 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}&updatedsince=${new Date(Date.now() - 3600000).toISOString()}`,
       // url: `https://api.sosinventory.com/api/v2/purchaseorder?start=${start}`,
       headers: {
         Accept: 'application/json',
@@ -4387,12 +4390,15 @@ export const updatePickTicketsItemLines = functions.runWith(runtimeOpts).https.o
       console.log(req.body);
       const order_products = JSON.parse(req.body.order_products);
       let pick_ticket = JSON.parse(req.body.pick_ticket)[0];
+      let sos_items = JSON.parse(req.body.sos_items);
+      let refNumber = req.body.refNumber;
       console.log("order_products");
       console.log(order_products);
       delete pick_ticket['total'];
       delete pick_ticket['archived'];
       pick_ticket.lines = order_products.map((op: any) => {
         let lineItem = pick_ticket.lines.find((item: any) => item.item.id === op.sos_id) || {};
+        let sos_item = sos_items.find((item: any) => item.item.id === op.sos_id) || {};
         return {
           ...lineItem,
           item: {
@@ -4400,7 +4406,14 @@ export const updatePickTicketsItemLines = functions.runWith(runtimeOpts).https.o
             name: op.name
           },
           quantity: op.quantity,
-          bin: (lineItem && lineItem.bin) ? lineItem.bin : {"name": ".FEES"}
+          bin: (lineItem && lineItem.bin) ? lineItem.bin : { "name": ".FEES" },
+          lineNumber: sos_item.lineNumber,
+          linkedTransaction: {
+            id: sos_item.id, 
+            transactionType: 'SO',
+            refNumber: refNumber,
+            lineNumber: sos_item.lineNumber
+          }
         }
       })
       res.status(200).send(pick_ticket);
