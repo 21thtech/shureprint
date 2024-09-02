@@ -30,9 +30,9 @@ const logoBase641 = "data:image/png;base64,/9j/4AAQSkZJRgABAQEBIAEgAAD/2wBDAAEBA
 const company_id = 223218;
 const ACCESS_TOKEN = "36373134633762332d396631372d343830352d613261342d363538663835626565316535";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
-// Expire In 2024/09/04
-const SOS_TOKEN = "uiCBgOfNd8F7PMznegVI11WdChGNL6MDiJs-17HK34Go5G9foJKWUkj5lVbCnvSshnnIv7KS5B30krPyAqrLWd253OMvYJX8ywXDDFzM4opUrJGBEBiKgikf99Uga_ChA5wBLngutTWjvk054_tq1EwzYGd6k0swqswX75_0b995gmdIfzPIIzzYVt7vuCsFFjn3zJiFg8hNyRllZYMYDq2G_vl8w1vxgK0fzN3P3_FXq8hX0ozHyHIuRYa-CxUbQ7bAzZQrXNAUZXb-6PQnkKh9q455fU-DEHIi5QnX-xKny-FV";
-// const SOS_REFRESH_TOKEN = "nIX0ykjL3MqGi6EYgaPI30_7Qa2315340e6J_le85d1zuNUNkfR6-OKdjwMV6n-gSbQ1EBeWC9BwyfJTFJ1sOaeP0DdbIGDBAfpw2XCghD8oAfneXQUCZ8NR6_0HauZwTk_7xRHaOjeiBUTdnRfxs8646zHzI4J7FGpWb_Vn1FVeomCkhO82LP14N8Dr8fQlBp3KSYOKGF1iVB1rp1OwjGLehh9ZGefKU0RJZm2GZGnWZk1PFTPdTjcYxny1iorlPpq35X4gyx5ZBxlt_L9VoSeEUDan4mXEy3etkJF4PiRe0UaQ";
+// Expire In 2024/11/27
+const SOS_TOKEN = "jmTkhaaOiXTcIV3b-SbuJaNMhRo1KwBCLAO35oBueq_eTIsu_QHVoFHLkvRE_fMGWWInbfrHY4Tvcy90gcTcFy05YpDGY216B2uh7MGHxIfERM0sgiI4tlcm9iPiwoqLQbpv7TFZysVacuOwPJ5mlSTrwCmytBWV9Rid_z-4i59JFamEzVeN3SUQ45mbKOL6SrOUSIQ2zFPdbM7i3dQ0u5v9LNHmj2zTYhMV9ttnVEKRRiU2rtmywIcTbQCGFrWCvX1psN-Az2Gi3AaMYrRwsrd7XXEnQxQilqYo00Yv3IKP6tBj";
+// const SOS_REFRESH_TOKEN = "Y7PeDCjSmkIQUN_L-mQNww9ziuKsmJjOBDgbPJsGA4gxPXcJxaER5E9kji8fj2SUr18yTedv2GlYr3Jhwo-iWdn8V67bFGvmLgtK2-32c2aD3BlpiBJhv7yUmtDksDyFr-HlMNvSOPYOfqUWqwLK4YDRgAUFVltaCeuX3GEzdAtNq44c0yLElclkPXc8opYtUztWghZC5EXXDsUz5_be4_6sV5AqoY97FJkuoVWuWi4Hd2gBxinxNm6Mst0i652ckryapp3WKm6X07QEtITadgvMfhdB4726hE7j-tWEU2AIGU1_";
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
@@ -1466,7 +1466,7 @@ const getEmployeeData = () => {
   return new Promise(resolve => {
     let airtable_employees: any = {};
     base('Employees').select({
-      fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Role Id", "Reg Rate", "Active", "Updated At"],
+      fields: ["Identity", "Employee ID", "POS ID", "First", "Last", "Email", "Mobile", "Location", "Paycom Code", "R365 Code", "Role", "Role Id", "Reg Rate", "Active", "Updated At", "Role Original"],
       maxRecords: 5000,
       view: "Grid view",
     }).eachPage(function page(records: any[], fetchNextPage: any) {
@@ -2300,6 +2300,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Event Server':
                 case 'Events Server':
                 case 'Server':
+                case 'Trainer Server':
                 case 'Sommelier':
                 case 'Lead Sommelier':
                 case 'Events Sommelier': { //Server pool
@@ -2340,6 +2341,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Event Bartender':
                 case 'Events Bartender':
                 case 'Bartender':
+                case 'Trainer Bartender':
                 case 'Service Bar': { //Bartender pool
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 1 : 0;
@@ -2377,21 +2379,21 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Event Busser':
                 case 'Busser':
                 case 'Support':
+                case 'Event Server Assistant':
+                case 'Server Assistant':
                 case 'Table Server Assistant':
                 case 'Event Runner':
+                case 'Trainer Busser':
+                case 'Trainer Runner':
                 case 'Runner':
                 case 'TSA': {
                   if (event.tips > 0 && midday !== 'pm') {
-                    if (acc.location === 'Poppy' && trading_day.date === '2023-02-19') {
-                      pts = total_hours > 0 ? 1 : 0;
-                      if (over_point === 0) break;
-                      event.pts += over_point || (total_hours > 0 ? 1 : 0);
-                    } else {
-                      pts = total_hours > 0 ? 0.5 : 0;
-                      if (over_point === 0) break;
-                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                    }
+                    if (acc.type == 'restaurant2' && !role_name.includes('Event')) break;
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                   } else if (event.tips_pm > 0 && midday === 'pm') {
+                    if (acc.type == 'restaurant2' && !role_name.includes('Event')) break;
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
                     event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
@@ -2425,21 +2427,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     } else {
                       serverPool.pts += over_point || (0.4 * daily_pts);
                     }
-                  }
-                  break;
-                }
-                case 'Event Runner':
-                case 'Runner': {
-                  if (acc.type == 'restaurant2') {
-                    if (event.tips > 0 && midday !== 'pm') {
-                      pts = total_hours > 0 ? 1 : 0;
-                      if (over_point === 0) break;
-                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                    } else if (event.tips_pm > 0 && midday === 'pm') {
-                      pts = total_hours > 0 ? 1 : 0;
-                      if (over_point === 0) break;
-                      event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                    } else {
+                  } else if (acc.type === 'restaurant2') {
+                    if (role_name === 'Runner') {
                       pts = (0.55 * daily_pts);
                       if (over_point === 0) break;
                       if (midday === 'pm') {
@@ -2447,23 +2436,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                       } else {
                         serverPool.pts += over_point || (0.55 * daily_pts);
                       }
-                    }
-                  }
-                  break;
-                }
-                case 'Busser':
-                case 'Server Assistant':
-                case 'Event Server Assistant': {
-                  if (event.tips > 0 && midday !== 'pm') {
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                  } else if (event.tips_pm > 0 && midday === 'pm') {
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    event.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                  } else {
-                    if (acc.type == 'restaurant2') {
+                    } else if (role_name === 'Busser' || role_name === 'Server Assistant') {
                       pts = (0.45 * daily_pts);
                       if (over_point === 0) break;
                       if (midday === 'pm') {
@@ -2471,10 +2444,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                       } else {
                         serverPool.pts += over_point || (0.45 * daily_pts);
                       }
-                    } else if (acc.type == 'restaurant') {
-                      pts = (0.4 * daily_pts);
-                      if (over_point === 0) break;
-                      busserRunnerPool.pts += over_point || (0.4 * daily_pts);
                     }
                   }
                   break;
@@ -2486,6 +2455,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Receptionist':
                 case 'Lead Host':
                 case 'Event Host':
+                case 'Trainer Host':
                 case 'Anchor Host': {
                   if (event.tips > 0 && midday !== 'pm') {
                     if (acc.type == 'restaurant2') {
@@ -2533,6 +2503,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 case 'Barback':
                 case 'Event Barback':
+                case 'Trainer Barback':
                 case 'Events Barback': {
                   if (event.tips > 0 && midday !== 'pm') {
                     pts = total_hours > 0 ? 0.5 : 0;
@@ -2578,21 +2549,21 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Pastry Prep Cook':
                 case 'Porter':
                 case 'Lead Prep Cook': {
-                  // if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
-                  //   pts = total_hours > 0 ? 0.5 : 0;
-                  //   if (over_point === 0) break;
-                  //   if (event.tips > 0 && midday !== 'pm') {
-                  //     event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
-                  //   } else if (event.tips_pm > 0 && midday === 'pm') {
-                  //     event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
-                  //   } else {
-                  //     bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                  //   }
-                  // } else if (event.tips > 0) {
-                  pts = total_hours > 0 ? 0.5 : 0;
-                  if (over_point === 0) break;
-                  bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                  // }
+                  if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    if (event.tips > 0 && midday !== 'pm') {
+                      event.pts_boh += over_point || (total_hours > 0 ? 0.5 : 0);
+                    } else if (event.tips_pm > 0 && midday === 'pm') {
+                      event.pts_boh_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                    } else {
+                      bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    }
+                  } else if (event.tips > 0) {
+                    pts = total_hours > 0 ? 0.5 : 0;
+                    if (over_point === 0) break;
+                    bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                  }
                   break;
                 }
                 case 'Sushi Cook': {
@@ -2776,6 +2747,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Server':
               case 'Event Server':
               case 'Events Server':
+              case 'Trainer Server':
               case 'Sommelier':
               case 'Lead Sommelier':
               case 'Events Sommelier': { //Server pool
@@ -2808,6 +2780,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               }
               case 'Barback':
               case 'Event Barback':
+              case 'Trainer Barback':
               case 'Events Barback': {
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -2842,6 +2815,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Bartender':
               case 'Event Bartender':
               case 'Events Bartender':
+              case 'Trainer Bartender':
               case 'Lead Bartender':
               case 'Service Bar': { //Bartender pool
                 if (acc.type === 'restaurant') {
@@ -2880,7 +2854,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Busser':
               case 'Support':
               case 'Table Server Assistant':
+              case 'Trainer Busser':
+              case 'Trainer Runner':
               case 'Server Assistant':
+              case 'Event Server Assistant':
               case 'TSA': {
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -2917,6 +2894,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Reception':
               case 'Receptionist':
               case 'Lead Host':
+              case 'Trainer Host':
               case 'Anchor Host': {
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -3592,14 +3570,14 @@ export const listenFromWebhook = functions.runWith(runtimeOpts).https.onRequest(
   }
 })
 
-export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('01 * * * *').onRun(async () => {
+export const importSalesOrderFromSOS = functions.runWith(runtimeOpts).pubsub.schedule('every 15 minutes').onRun(async () => {
 
   let salesOrderItems: any[] = [];
   let count = 200, start = 1;
   while (count == 200) {
     const options = {
       method: 'GET',
-      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3 * 3600000).toISOString()}`,
+      url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed&updatedsince=${new Date(Date.now() - 3600000).toISOString()}`,
       // url: `https://api.sosinventory.com/api/v2/salesorder?start=${start}&status=closed`,
       headers: {
         Accept: 'application/json',
@@ -3937,12 +3915,12 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
       let sql_str = new_employees.reduce((sql, emp, index) => {
         return sql + `($$${emp.get("Identity")}$$,$$${emp.get("Employee ID")}$$,${emp.get("POS ID")},$$${emp.get("First")}$$,$$${emp.get("Last")}$$,`
           + `$$${emp.get("Email")}$$,$$${emp.get("Mobile")}$$,$$${emp.get("Location")}$$,$$${emp.get("Paycom Code")}$$,${emp.get("R365 Code")},`
-          + `$$${emp.get("Role")}$$,${emp.get("Role Id")},${emp.get("Reg Rate")},${emp.get("Active")})` + (index < (new_employees.length - 1) ? ', ' : ' ');
+          + `$$${emp.get("Role")}$$,$$${emp.get("Role Original")}$$,${emp.get("Role Id")},${emp.get("Reg Rate")},${emp.get("Active") || false})` + (index < (new_employees.length - 1) ? ', ' : ' ');
       }, 'INSERT INTO employees (airtable_id, employee_id, pos_id, first, last, '
       + 'email, mobile, location, paycom_code, r365_code, '
-      + 'role, role_id, reg_rate, active) VALUES ');
+      + 'role, role_name, role_id, reg_rate, active) VALUES ');
       sql_str += 'ON CONFLICT(airtable_id) DO UPDATE SET employee_id = EXCLUDED.employee_id, email = EXCLUDED.email, first=EXCLUDED.first,'
-        + 'mobile = EXCLUDED.mobile, role = EXCLUDED.role, role_id = EXCLUDED.role_id, reg_rate = EXCLUDED.reg_rate, active = EXCLUDED.active;'
+        + 'mobile = EXCLUDED.mobile, role = EXCLUDED.role, role_name = EXCLUDED.role_name, role_id = EXCLUDED.role_id, reg_rate = EXCLUDED.reg_rate, active = EXCLUDED.active;'
       await db.query(sql_str, []);
     }
     console.log(`Upsert ${new_employees.length} Employees To PostgreSQL`);
@@ -4024,14 +4002,16 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
           + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
           + `$$${check.type}$$,${check.type_id},$$${check.taxed_type}$$,$$${check.table_name || ''}$$,$$${check.location}$$,$$${check.zone || ''}$$,`
           + `${check.autograt_tax},$$${check.trading_day_id}$$,$$${check.trading_day}$$,$$${check.updated_at}$$,`
-          + `${check.non_revenue_total},${check.sub_total - check.non_revenue_total / 100.0},${check.outstanding_balance}, ${check.comp_total})` + (index < (new_checks.length - 1) ? ', ' : ' ');
+          + `${check.non_revenue_total},${check.sub_total - check.non_revenue_total / 100.0},${check.outstanding_balance}, ${check.comp_total}, $$${check.voidcomp ? check.voidcomp.reason_text : ''}$$, $$${check.voidcomp ? check.voidcomp.type : ''}$$, ${check.voidcomp ? check.voidcomp.value : 'NULL'})` + (index < (new_checks.length - 1) ? ', ' : ' ');
       }, 'INSERT INTO checks (id, name, number, status, sub_total, tax_total, '
       + 'total, mandatory_tip_amount, open_time, close_time, employee_name, '
       + 'employee_role_name, employee_id, employee, guest_count, '
       + 'type, type_id, taxed_type, table_name, location, zone, autograt_tax, trading_day_id, trading_day, '
-      + 'updated_at, non_revenue_total, revenue_total, outstanding_balance, comp_total) VALUES ');
+      + 'updated_at, non_revenue_total, revenue_total, outstanding_balance, comp_total, voidcomp_reason_text, '
+      + 'voidcomp_type, voidcomp_value) VALUES ');
       sql_str += 'ON CONFLICT(id) DO UPDATE SET sub_total = EXCLUDED.sub_total, tax_total = EXCLUDED.tax_total, employee=EXCLUDED.employee,'
         + 'total = EXCLUDED.total, open_time = EXCLUDED.open_time, close_time = EXCLUDED.close_time, updated_at = EXCLUDED.updated_at,'
+        + 'voidcomp_reason_text = EXCLUDED.voidcomp_reason_text, voidcomp_type = EXCLUDED.voidcomp_type, voidcomp_value = EXCLUDED.voidcomp_value,'
         + 'comp_total=EXCLUDED.comp_total, non_revenue_total = EXCLUDED.non_revenue_total, revenue_total = EXCLUDED.revenue_total;'
       await db.query(sql_str, []);
     }
@@ -4409,7 +4389,7 @@ export const updatePickTicketsItemLines = functions.runWith(runtimeOpts).https.o
           bin: (lineItem && lineItem.bin) ? lineItem.bin : { "name": ".FEES" },
           lineNumber: sos_item.lineNumber,
           linkedTransaction: {
-            id: sos_item.id, 
+            id: sos_item.id,
             transactionType: 'SO',
             refNumber: refNumber,
             lineNumber: sos_item.lineNumber
