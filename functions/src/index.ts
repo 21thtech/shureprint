@@ -2327,9 +2327,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 continue;
               }
 
-              let daily_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
+              let daily_shift_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
               if (midday === 'am') {
-                daily_pts = Math.round(total_hours_point / 4 * 100) / 100;
+                daily_shift_pts = Math.round(total_hours_point / 4 * 100) / 100;
               }
 
               let pts = 0;
@@ -2338,7 +2338,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 over_point = overpoint_data[airtable_id]['over_point'];
                 console.log(airtable_id, over_point);
               }
-              daily_pts = daily_pts >= 0.66 ? 1 : daily_pts >= 0.33 ? 0.5 : daily_pts > 0.1 ? 0.25 : 0;
+              let daily_pts = daily_shift_pts >= 0.66 ? 1 : daily_shift_pts >= 0.33 ? 0.5 : daily_shift_pts > 0.1 ? 0.25 : 0;
 
               // Exception Tip Distribution For Delilah Miami Training Roles
               if (acc.location === 'Delilah Miami' && trading_day.date >= '2023-12-08' && trading_day.date <= '2023-12-10') {
@@ -2387,6 +2387,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Lead Bartender':
+                case 'Lead Bartender Admin':
                 case 'Event Bartender':
                 case 'Events Bartender':
                 case 'Bartender':
@@ -2435,6 +2436,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Trainer Busser':
                 case 'Trainer Runner':
                 case 'Runner':
+                case 'Event TSA':
                 case 'TSA': {
                   if (event.tips > 0 && midday !== 'pm') {
                     if (acc.type == 'restaurant2' && !role_name.includes('Event')) break;
@@ -2757,22 +2759,23 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Dishwasher':
               case 'Pastry Prep Cook':
               case 'Porter':
-              case 'Lead Prep Cook': {
-                // if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
-                //   final_tips = Math.round(event.tips * 0.05 * point / event.pts_boh * 100) / 100;
-                // } else {
-                //   final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
-                // }
-                final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+              case 'Lead Prep Cook':
+              case 'Sushi Cook': {
+                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                  final_tips = Math.round(event.tips * 0.05 * point / event.pts_boh * 100) / 100;
+                } else {
+                  final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
+                }
+                // final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
                 break;
               }
               default: {
-                // if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
-                //   final_tips = Math.round(event.tips * 0.95 * point / event.pts * 100) / 100;
-                // } else {
-                //   final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
-                // }
-                final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                  final_tips = Math.round(event.tips * (event.pts_boh > 0 ? 0.95 : 1) * point / event.pts * 100) / 100;
+                } else {
+                  final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
+                }
+                // final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
               }
             }
           } else if (event.tips_pm > 0 && midday === 'pm') {
@@ -2789,7 +2792,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               default: {
-                final_tips = Math.round(event.tips_pm * 0.95 * point / event.pts_pm * 100) / 100;
+                final_tips = Math.round(event.tips_pm * (event.pts_boh_pm > 0 ? 0.95 : 1) * point / event.pts_pm * 100) / 100;
               }
             }
           } else {
@@ -2867,6 +2870,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Events Bartender':
               case 'Trainer Bartender':
               case 'Lead Bartender':
+              case 'Lead Bartender Admin':
               case 'Service Bar': { //Bartender pool
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -2908,6 +2912,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Trainer Runner':
               case 'Server Assistant':
               case 'Event Server Assistant':
+              case 'Event TSA':
               case 'TSA': {
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -2943,6 +2948,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Event Reception':
               case 'Reception':
               case 'Receptionist':
+              case 'Event Host':
               case 'Lead Host':
               case 'Trainer Host':
               case 'Anchor Host': {
@@ -3219,10 +3225,14 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
     if (!isEvent) { // Not For Delilah Miami Partial Event
       await db.query(`DELETE from reports${simulate ? '_simulation' : ''} WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${location}\';` : ";"), []);
-      await db.query(sql_str, []);
+      if (converted_airtable_data.length) {
+        await db.query(sql_str, []);
+      }
 
       await db.query(`DELETE from server2bar_contribution WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${location}\';` : ";"), []);
-      await db.query(sql_str_2, []);
+      if (converted_airtable_data.length) {
+        await db.query(sql_str_2, []);
+      }
     }
 
 
