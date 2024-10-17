@@ -420,7 +420,8 @@ const useQuoteHTML = (body: any) => {
           <th width="5%">Set Ups</th>` : '') + (body.showPreviousPrice ? `
           <th width="10%">Previous Price</th>
           <th width="10%">Saving %</th>
-          <th width="10%">Saving $</th>` : '') + (body.showDiscount ? `
+          <th width="10%">Saving $</th>
+          <th width="10%">Annual Saving</th>` : '') + (body.showDiscount ? `
           <th width="10%">Discount</th>` : '') + (!body.is_price_comparison && !body.is_stock_quote ? `
           <th width="10%">Sub Total</th>` : ``) + `          
         </tr></thead><tbody>`;
@@ -439,14 +440,21 @@ const useQuoteHTML = (body: any) => {
           <td>${item.setups ? ('$' + item.setups.toFixed(2)) : ''}</td>` : '') + (body.showPreviousPrice ? `
           <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
           <td>${item.previous_price ? (((item.previous_price - item.unit_price) / item.previous_price * 100).toFixed(1) + '%') : ''}</td>
-          <td>${item.previous_price ? ('$' + (item.previous_price - item.unit_price).toFixed(2)) : ''}</td>` : '') + (body.showDiscount ? `
+          <td>${item.previous_price ? ('$' + (item.previous_price - item.unit_price).toFixed(2)) : ''}</td>
+          <td>${(item.previous_price && item.monthly_case) ? ('$' + ((item.previous_price - item.unit_price) * item.monthly_case * 12).toFixed(2)) : ''}</td>` : '') + (body.showDiscount ? `
           <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>` : '') + (!body.is_price_comparison && !body.is_stock_quote ? `
           <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>` : ``) + `
         </tr>`;
   }
   createdTemplate += `
       </tbody></table>
-      <hr>` + (body.showPaymentDetails ? `
+      <hr>` + (body.is_price_comparison ? `
+      <div class="d-flex">
+        <div style="width: 100%; text-align: right;">
+          Total Saving: $${body.total_saving ? body.total_saving.toFixed(2) : '0.00'}<br>
+        </div>
+      </div>
+      ` : ``) + (body.showPaymentDetails ? `
       <div class="d-flex">
         <div style="width: 60%">
           <b>Payment Terms</b>
@@ -1411,7 +1419,7 @@ const locations: any = {
   //   location_id: "317863",
   //   full_shift: 6
   // },
-  // "361814": 
+  // "430575": 
   "Delilah Miami": {
     r365_code: 405,
     paycome_code: "165682",
@@ -1419,7 +1427,7 @@ const locations: any = {
     password: "J_YEk7TKJYDt",
     location: "Delilah Miami",
     type: "restaurant2",
-    location_id: "361814",
+    location_id: "430575",
     full_shift: 8
   },
   "Keys Los Angeles": {
@@ -1658,13 +1666,13 @@ const getEventTips = (fromDate: string, toDate: string) => {
   return new Promise(resolve => {
     let event_tips: any = {};
     base('Reports For Events').select({
-      fields: ["Identity", "Final Tips"],
+      fields: ["Identity", "Final Tips", "Point"],
       maxRecords: 1000,
       view: "Grid view",
       filterByFormula: `"And(DATESTR({Date}) >= ${fromDate}, DATESTR({Date}) <= ${toDate})"`
     }).eachPage(function page(records: any[], fetchNextPage: any) {
       records.forEach((record) => {
-        event_tips[record.get('Identity')] = record.get("Final Tips");
+        event_tips[record.get('Identity')] = { tips: record.get("Final Tips"), point: record.get("Point") };
       });
       fetchNextPage();
     }, function done(err: any) {
@@ -1724,7 +1732,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
     let res: any = await doRequest(options);
     let res1: any = await doRequest(options1);
     users = [...res.users, ...res1.users];
-  } else if (locationId === '361814') {
+  } else if (locationId === '430575') {
     let res: any = await doRequest(options1);
     users = [...users, ...res.users];
   } else {
@@ -1773,7 +1781,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
       console.log("Getting Trading_Days: ", acc.location, trading_days.length);
       for (let trading_day of trading_days) {
         const weekday = getMonday(trading_day.date, 1);
-        const isWeekends = (new Date(trading_day.date).getDay() + 6) % 7 == 5;
+        const isWeekends = (new Date(trading_day.date).getDay() + 6) % 7 == 5 || trading_day.date === '2024-09-27';
         const isEventDay = ['2024-02-25'].indexOf(trading_day.date) > -1; // Delilah Miami
         const isPartialBuyoutDate = partialBuyoutDates[acc.location + '(' + trading_day.date + ')'] === true; // Delilah Miami
 
@@ -1848,7 +1856,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         let middayObj: any = {};
         let isDoubleShifts: any = {};
 
-        if (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) {
+        if (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) {
           for (let user of users) {
             for (let role of user.roles.filter((rl: any, index: number) =>
               user.roles.findIndex((rrl: any) => rl.role_label === rrl.role_label) === index
@@ -1870,7 +1878,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 middayObj[airtable_id + '_pm'] = 'pm';
               } else {
                 for (let shift of shifts_day) {
-                  middayObj[airtable_id] = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '361814' ? 15 : 14) ? 'am' : 'pm' : null
+                  middayObj[airtable_id] = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null
                 }
               }
             }
@@ -1930,7 +1938,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
-          let midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '361814' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
+          let midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '430575' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
           let isDoubleShift = isDoubleShifts[airtable_id];
           if (isDoubleShift && midday == 'pm') {
             airtable_id += '_pm';
@@ -2068,7 +2076,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             case 'Sommelier':
             case 'Lead Sommelier':
             case 'Events Sommelier': { //Server pool
-              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) && midday === 'pm') {
+              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && midday === 'pm') {
                 serverPool.tips_pm += total_tips;
               } else {
                 serverPool.tips += total_tips;
@@ -2081,7 +2089,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             case 'Bartender':
             case 'Trainer Bartender':
             case 'Service Bar': { //Bartender pool
-              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) && midday === 'pm') {
+              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && midday === 'pm') {
                 bartenderPool.tips_pm += total_tips;
               } else {
                 bartenderPool.tips += total_tips;
@@ -2183,7 +2191,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Sommelier':
               case 'Lead Sommelier':
               case 'Events Sommelier': { //Server pool
-                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) && additional_tip_data['midday'] === 'pm') {
+                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && additional_tip_data['midday'] === 'pm') {
                   if (additional_tip_data['type'] === 'Service Charge') {
                     event.tips_pm += additional_tip_data['tips'];
                   } else if (additional_tip_data['type'] === 'Service Fee') {
@@ -2208,7 +2216,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Bartender':
               case 'Trainer Bartender':
               case 'Service Bar': { //Bartender pool
-                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && isEventDay)) && additional_tip_data['midday'] === 'pm') {
+                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && additional_tip_data['midday'] === 'pm') {
                   if (additional_tip_data['type'] === 'Service Charge') {
                     event.tips_pm += additional_tip_data['tips'];
                   } else if (additional_tip_data['type'] === 'Service Fee') {
@@ -2267,7 +2275,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               // if (!shift.role_label.includes('Event')) {
               total_hours_point = Math.round(shift.total.total_hours * 100) / 100;
               // }
-              midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '361814' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '361814' ? 15 : 14) ? 'am' : 'pm' : null
+              midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null
 
               let role_name = role.location_label === 'Slab BBQ LA' ?
                 (role.role_label === 'Manager' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
@@ -2376,6 +2384,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   } else {
                     pts = daily_pts;
                     if (over_point === 0) break;
+                    if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) break;
                     if (midday === 'pm') {
                       serverPool.count_pm += total_hours_point > 0 ? 1 : 0;
                       serverPool.pts_pm += over_point || daily_pts;
@@ -2387,7 +2396,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Lead Bartender':
-                case 'Lead Bartender Admin':
                 case 'Event Bartender':
                 case 'Events Bartender':
                 case 'Bartender':
@@ -2416,6 +2424,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   } else {
                     pts = daily_pts;
                     if (over_point === 0) break;
+                    if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) break;
                     if (midday === 'pm') {
                       bartenderPool.count_pm += total_hours_point > 0 ? 1 : 0;
                       bartenderPool.pts_pm += over_point || daily_pts;
@@ -2463,6 +2472,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   } else if (acc.type == 'nightclub') {
                     pts = 0.4 * daily_pts;
                     if (over_point === 0) break;
+                    if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) break;
                     busserRunnerPool.count += total_hours_point > 0 ? 0.4 : 0;
                     busserRunnerPool.pts += over_point || (0.4 * daily_pts);
                     if (airtable_id === '2023-08-11_200025_James_SHOREbar_Support'
@@ -2583,6 +2593,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   } else {
                     pts = daily_pts / 2;
                     if (over_point === 0) break;
+                    if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) break;
                     if (midday === 'pm') {
                       barbackPool.count_pm += total_hours_point > 0 ? 0.5 : 0;
                       barbackPool.pts_pm += over_point || (daily_pts / 2);
@@ -2600,7 +2611,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Pastry Prep Cook':
                 case 'Porter':
                 case 'Lead Prep Cook': {
-                  if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                  if (['Bird Streets Club', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
                     pts = total_hours > 0 ? 0.5 : 0;
                     if (over_point === 0) break;
                     if (event.tips > 0 && midday !== 'pm') {
@@ -2746,7 +2757,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (!airtable_data[id]['Point']) {
             // For Additional Delilah Miami Partial Buyout
             if (eventTips[id] && isPartialBuyoutDate) {
-              final_tips += eventTips[id];
+              final_tips += eventTips[id].tips;
+              airtable_data[id]['Point'] = eventTips[id].point;
             }
             airtable_data[id]['Final Tips'] = final_tips;
             continue;
@@ -2761,7 +2773,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Porter':
               case 'Lead Prep Cook':
               case 'Sushi Cook': {
-                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                if (['Bird Streets Club', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
                   final_tips = Math.round(event.tips * 0.05 * point / event.pts_boh * 100) / 100;
                 } else {
                   final_tips = Math.round(bohPool.tips * point / bohPool.pts * 100) / 100;
@@ -2770,7 +2782,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               default: {
-                if (['Bird Streets Club', 'Delilah LA', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
+                if (['Bird Streets Club', 'Delilah Miami', 'Didi'].indexOf(acc.location) > -1) {
                   final_tips = Math.round(event.tips * (event.pts_boh > 0 ? 0.95 : 1) * point / event.pts * 100) / 100;
                 } else {
                   final_tips = Math.round(event.tips * point / event.pts * 100) / 100;
@@ -2823,6 +2835,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     }
                   }
                 } else {
+                  if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) {
+                    final_tips = 0;
+                    break;
+                  }
                   if (midday === 'pm') {
                     final_tips = Math.round(serverPool.tips_pm * (serverPool.count_pm / (serverPool.count_pm + busserRunnerPool.count_pm)) * point / serverPool.pts_pm * 100) / 100;
                   } else {
@@ -2842,6 +2858,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                   }
                 } else if (acc.type === 'nightclub') {
+                  if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) {
+                    final_tips = 0;
+                    break;
+                  }
                   final_tips = Math.round(bartenderPool.tips * (barbackPool.count / (bartenderPool.count + barbackPool.count)) * point / barbackPool.pts * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   if (midday === 'pm') {
@@ -2870,7 +2890,6 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Events Bartender':
               case 'Trainer Bartender':
               case 'Lead Bartender':
-              case 'Lead Bartender Admin':
               case 'Service Bar': { //Bartender pool
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -2879,6 +2898,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                   }
                 } else if (acc.type === 'nightclub') {
+                  if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) {
+                    final_tips = 0;
+                    break;
+                  }
                   final_tips = Math.round(bartenderPool.tips * (bartenderPool.count / (bartenderPool.count + barbackPool.count)) * point / bartenderPool.pts * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   if (midday === 'pm') {
@@ -2921,6 +2944,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     final_tips = Math.round(busserRunnerPool.tips * point / busserRunnerPool.pts * 100) / 100;
                   }
                 } else if (acc.type === 'nightclub') {
+                  if (role_name.includes('Event') && isPartialBuyoutDate && !isEvent) {
+                    final_tips = 0;
+                    break;
+                  }
                   final_tips = Math.round(serverPool.tips * (busserRunnerPool.count / (serverPool.count + busserRunnerPool.count)) * point / busserRunnerPool.pts * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   if (midday === 'pm') {
@@ -2991,7 +3018,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
           // For Additional Delilah Miami Partial Buyout
           if (eventTips[id] && isPartialBuyoutDate) {
-            final_tips += eventTips[id];
+            final_tips += eventTips[id].tips;
+            airtable_data[id]['Point'] = eventTips[id].point;
           }
 
           airtable_data[id]['Final Tips'] = final_tips;
@@ -4080,14 +4108,13 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
       console.log(`Upsert ${new_check_items.length} Check Items To PostgreSQL`);
       let sql_str = new_check_items.reduce((sql, check_item, index) => {
         return sql + `($$${check_item.id}$$,$$${check_item.check_id}$$,$$${check_item.name}$$,$$${check_item.date}$$,$$${check_item.item_id}$$,`
-          + `${check_item.quantity || 0},${check_item.price || 0},${check_item.pre_tax_price || 0},${check_item.regular_price || 0},${check_item.cost || 0},`
-          + `${check_item.tax || 0},${check_item.comp_total},${check_item.comp_tax})` + (index < (new_check_items.length - 1) ? ', ' : ' ');
+          + `${check_item.quantity || 0},${check_item.price || 0},${check_item.pre_tax_price || 0},${check_item.regular_price || 0},${check_item.cost || 0},${check_item.tax || 0},${check_item.comp_total},${check_item.comp_tax},$$${check_item.category_id}$$)` + (index < (new_check_items.length - 1) ? ', ' : ' ');
       }, 'INSERT INTO check_items (id, check_id, name, date, item_id, '
       + 'quantity, price, pre_tax_price, regular_price, cost, '
-      + 'tax, comp_total, comp_tax) VALUES ');
+      + 'tax, comp_total, comp_tax, category_id) VALUES ');
       sql_str += 'ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, date = EXCLUDED.date, quantity = EXCLUDED.quantity, '
         + 'price = EXCLUDED.price, pre_tax_price = EXCLUDED.pre_tax_price, regular_price = EXCLUDED.regular_price, cost = EXCLUDED.cost, '
-        + 'tax = EXCLUDED.tax, comp_total = EXCLUDED.comp_total, comp_tax = EXCLUDED.comp_tax;'
+        + 'tax = EXCLUDED.tax, comp_total = EXCLUDED.comp_total, comp_tax = EXCLUDED.comp_tax, category_id = EXCLUDED.category_id;'
       await db.query(sql_str, []);
     }
 
