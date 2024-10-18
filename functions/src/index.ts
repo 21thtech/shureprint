@@ -3911,6 +3911,7 @@ export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest
     // console.log('Got Items From PGTable : ' + pg_items_ids.length);
 
     let new_items: any[] = [];
+    let new_categories: any[] = [];
     for (let loc of Object.keys(locations)) {
       let acc = locations[loc];
       if (!acc.user) continue;
@@ -3930,6 +3931,15 @@ export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest
           if (new Date(item.items_tax_rates[0]['updated_at']) > new Date(Date.now() - 6 * 3600000)) return true; else return false;
         } else return false;
       }).map((item: any) => ({ ...item, location: loc }))];
+
+      let categories: any[] = await getUpsertAPIResponse(
+        `https://api.breadcrumb.com/ws/v2/categories.json?`,
+        acc.user,
+        acc.password,
+        0
+      )
+      console.log('Got Categories For ', loc);
+      new_categories = [...new_categories, ...categories.map(ct => ({...ct, location: loc}))];
     }
 
     new_items = new_items.filter((item, index) => new_items.findIndex(item1 => item1.item_id === item.item_id) === index);
@@ -3943,7 +3953,18 @@ export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest
         + 'status = EXCLUDED.status, tax = EXCLUDED.tax, item_type = EXCLUDED.item_type, description = EXCLUDED.description, location = EXCLUDED.location;'
       await db.query(sql_str, []);
     }
-    console.log('Success');
+    console.log('Items Update Success');
+
+    new_categories = new_categories.filter((ct, index) => new_categories.findIndex(ct1 => ct1.id === ct.id) === index);
+    if (new_categories.length) {
+      console.log(`Categories ${new_categories.length} To PostgreSQL`);
+      let sql_str = new_categories.reduce((sql, ct, index) => {
+        return sql + `($$${ct.id}$$, $$${ct.name}$$, $$${ct.parent_id}$$, $$${ct.location}$$)` + (index < (new_categories.length - 1) ? ', ' : ' ');
+      }, 'INSERT INTO categories (id, name, parent_id, location) values ');
+      sql_str += 'ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, parent_id = EXCLUDED.parent_id, location = EXCLUDED.location;'
+      await db.query(sql_str, []);
+    }
+    console.log('Categories Update Success');
     response.status(200).send('Success');
 
   } catch (e) {
