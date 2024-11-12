@@ -419,9 +419,9 @@ const useQuoteHTML = (body: any) => {
           <th width="10%">Lead Time</th>
           <th width="5%">Set Ups</th>` : '') + (body.showPreviousPrice ? `
           <th width="10%">Previous Price</th>
-          <th width="10%">Saving %</th>
-          <th width="10%">Saving $</th>
-          <th width="10%">Annual Saving</th>` : '') + (body.showDiscount ? `
+          <th width="10%">Case Saving %</th>
+          <th width="10%">Case Saving $</th>
+          ${body.showAnnualCase && '<th width="10%">Estimated Annual Saving</th>' || ''}` : '') + (body.showDiscount ? `
           <th width="10%">Discount</th>` : '') + (!body.is_price_comparison && !body.is_stock_quote ? `
           <th width="10%">Sub Total</th>` : ``) + `          
         </tr></thead><tbody>`;
@@ -441,17 +441,17 @@ const useQuoteHTML = (body: any) => {
           <td>${item.previous_price ? ('$' + item.previous_price.toFixed(2)) : ''}</td>
           <td>${item.previous_price ? (((item.previous_price - item.unit_price) / item.previous_price * 100).toFixed(1) + '%') : ''}</td>
           <td>${item.previous_price ? ('$' + (item.previous_price - item.unit_price).toFixed(2)) : ''}</td>
-          <td>${(item.previous_price && item.monthly_case) ? ('$' + ((item.previous_price - item.unit_price) * item.monthly_case * 12).toFixed(2)) : ''}</td>` : '') + (body.showDiscount ? `
+          ${body.showAnnualCase && `<td>${(item.previous_price && item.monthly_case) ? ('$' + ((item.previous_price - item.unit_price) * item.monthly_case * 12).toFixed(2)) : ''}</td>` || ''}` : '') + (body.showDiscount ? `
           <td>${item.discount ? ('$' + item.discount.toFixed(2)) : ''}</td>` : '') + (!body.is_price_comparison && !body.is_stock_quote ? `
           <td>$${item.sub_total ? item.sub_total.toFixed(2) : '0.00'}</td>` : ``) + `
         </tr>`;
   }
   createdTemplate += `
       </tbody></table>
-      <hr>` + (body.is_price_comparison ? `
+      <hr>` + (body.is_price_comparison && body.showAnnualCase ? `
       <div class="d-flex">
         <div style="width: 100%; text-align: right;">
-          Total Saving: $${body.total_saving ? body.total_saving.toFixed(2) : '0.00'}<br>
+        Estimated Total Saving: $${body.total_saving ? body.total_saving.toFixed(2) : '0.00'}<br>
         </div>
       </div>
       ` : ``) + (body.showPaymentDetails ? `
@@ -1783,6 +1783,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         const weekday = getMonday(trading_day.date, 1);
         const isWeekends = (new Date(trading_day.date).getDay() + 6) % 7 == 5 || trading_day.date === '2024-09-27';
         const isEventDay = ['2024-02-25'].indexOf(trading_day.date) > -1; // Delilah Miami
+        const isBrunchDay = (new Date(trading_day.date).getDay() + 6) % 7 == 6 && trading_day.date > '2024-10-19'; // Delilah Miami
         const isPartialBuyoutDate = partialBuyoutDates[acc.location + '(' + trading_day.date + ')'] === true; // Delilah Miami
 
         /*
@@ -1856,7 +1857,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         let middayObj: any = {};
         let isDoubleShifts: any = {};
 
-        if (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) {
+        if (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && (isEventDay || isBrunchDay))) {
           for (let user of users) {
             for (let role of user.roles.filter((rl: any, index: number) =>
               user.roles.findIndex((rrl: any) => rl.role_label === rrl.role_label) === index
@@ -1878,7 +1879,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 middayObj[airtable_id + '_pm'] = 'pm';
               } else {
                 for (let shift of shifts_day) {
-                  middayObj[airtable_id] = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null
+                  middayObj[airtable_id] = (acc.location_id === '430575' && isBrunchDay) ? (role_name.includes('Brunch') ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null
                 }
               }
             }
@@ -1938,15 +1939,17 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
-          let midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '430575' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
+          let midday = (acc.location_id === '430575' && isBrunchDay) ? (Number(check.close_time.slice(11, 13)) < 18 ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '430575' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
           let isDoubleShift = isDoubleShifts[airtable_id];
           if (isDoubleShift && midday == 'pm') {
             airtable_id += '_pm';
           }
-          if (middayObj[airtable_id]) {
-            midday = middayObj[airtable_id]
-          }
-
+          // if (middayObj[airtable_id]) {
+          //   midday = middayObj[airtable_id]
+          // }
+          // if (acc.location_id === '430575' && isBrunchDay) {
+          //   midday = check.items.findIndex((item: any) => item.name.includes('Brunch')) > -1 ? 'am' : 'pm';
+          // }
           let total_tips = 0;
 
           if (!airtable_data[airtable_id]) {
@@ -1956,7 +1959,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               'Role Name': role_name,
               "Week Beginning": weekday,
               "Day": trading_day.date,
-              "Midday": midday,
+              "Midday": middayObj[airtable_id] || midday,
               "Reg Hours": 0,
               "OT Hours": 0,
               "DOT Hours": 0,
@@ -2076,7 +2079,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             case 'Sommelier':
             case 'Lead Sommelier':
             case 'Events Sommelier': { //Server pool
-              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && midday === 'pm') {
+              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && (isEventDay || isBrunchDay))) && midday === 'pm') {
                 serverPool.tips_pm += total_tips;
               } else {
                 serverPool.tips += total_tips;
@@ -2089,7 +2092,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             case 'Bartender':
             case 'Trainer Bartender':
             case 'Service Bar': { //Bartender pool
-              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && midday === 'pm') {
+              if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && (isEventDay || isBrunchDay))) && midday === 'pm') {
                 bartenderPool.tips_pm += total_tips;
               } else {
                 bartenderPool.tips += total_tips;
@@ -2191,7 +2194,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Sommelier':
               case 'Lead Sommelier':
               case 'Events Sommelier': { //Server pool
-                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && additional_tip_data['midday'] === 'pm') {
+                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && (isEventDay || isBrunchDay))) && additional_tip_data['midday'] === 'pm') {
                   if (additional_tip_data['type'] === 'Service Charge') {
                     event.tips_pm += additional_tip_data['tips'];
                   } else if (additional_tip_data['type'] === 'Service Fee') {
@@ -2216,7 +2219,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Bartender':
               case 'Trainer Bartender':
               case 'Service Bar': { //Bartender pool
-                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) && additional_tip_data['midday'] === 'pm') {
+                if ((acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && (isEventDay || isBrunchDay))) && additional_tip_data['midday'] === 'pm') {
                   if (additional_tip_data['type'] === 'Service Charge') {
                     event.tips_pm += additional_tip_data['tips'];
                   } else if (additional_tip_data['type'] === 'Service Fee') {
@@ -2241,7 +2244,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
         event.tips = Math.round(event.tips * 1000) / 1000;
 
-        if (event.tips > 0 || (trading_day.date <= '2023-12-14' && trading_day.date >= '2023-12-12' && acc.location === 'Delilah Miami')) {
+        if (event.tips > 0 || ((trading_day.date <= '2023-12-14' && trading_day.date >= '2023-12-12' || isBrunchDay) && acc.location === 'Delilah Miami')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
         }
@@ -2275,13 +2278,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               // if (!shift.role_label.includes('Event')) {
               total_hours_point = Math.round(shift.total.total_hours * 100) / 100;
               // }
-              midday = isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null
 
               let role_name = role.location_label === 'Slab BBQ LA' ?
                 (role.role_label === 'Manager' ? 'Assistant Manager' : user.user.employee_id === '19120' ? 'Manager' : 'Server')
                 : role.location_label === 'Slab BBQ Pasadena' ?
                   (['12065', '17414', '19557'].includes(user.user.employee_id) ? role.role_label : 'Server')
                   : role.role_label;
+
+              midday = (acc.location_id === '430575' && isBrunchDay) ? (role_name.includes('Brunch') ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null
+
 
               // role_name = getRoleName(role_name, role.location_label);
 
@@ -2337,7 +2342,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
               let daily_shift_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
               if (midday === 'am') {
-                daily_shift_pts = Math.round(total_hours_point / 4 * 100) / 100;
+                daily_shift_pts = Math.round(total_hours_point / ((acc.location_id === '430575' && isBrunchDay) ? 4.5 : 4) * 100) / 100;
               }
 
               let pts = 0;
@@ -2357,8 +2362,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Event Server':
                 case 'Events Server':
                 case 'Server':
+                case 'Brunch Server':
                 case 'Trainer Server':
                 case 'Sommelier':
+                case 'Brunch Sommelier':
                 case 'Lead Sommelier':
                 case 'Events Sommelier': { //Server pool
                   if (event.tips > 0 && midday !== 'pm') {
@@ -2399,6 +2406,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 case 'Event Bartender':
                 case 'Events Bartender':
                 case 'Bartender':
+                case 'Brunch Bartender':
                 case 'Trainer Bartender':
                 case 'Service Bar': { //Bartender pool
                   if (event.tips > 0 && midday !== 'pm') {
@@ -2437,21 +2445,36 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 case 'Event Busser':
                 case 'Busser':
+                case 'Brunch Busser':
+                case 'Trainer Busser':
                 case 'Support':
                 case 'Event Server Assistant':
                 case 'Server Assistant':
+                case 'Brunch Server Assistant':
                 case 'Table Server Assistant':
                 case 'Event Runner':
-                case 'Trainer Busser':
                 case 'Trainer Runner':
                 case 'Runner':
+                case 'Brunch Runner':
                 case 'Event TSA':
+                case 'Events TSA':
                 case 'TSA': {
                   if (event.tips > 0 && midday !== 'pm') {
-                    if (acc.type == 'restaurant2' && !role_name.includes('Event')) break;
-                    pts = total_hours > 0 ? 0.5 : 0;
-                    if (over_point === 0) break;
-                    event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    if (acc.type == 'restaurant2' && (!role_name.includes('Event') && !role_name.includes('Brunch'))) break;
+                    if (role_name === 'Brunch Runner') {
+                      pts = (total_hours > 0 ? 0.55 : 0);
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 0.55 : 0);
+                    } else if (role_name === 'Brunch Busser' || role_name === 'Brunch Server Assistant') {
+                      pts = total_hours > 0 ? 0.45 : 0
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 0.45 : 0);
+                    } else {
+                      pts = total_hours > 0 ? 0.5 : 0;
+                      if (over_point === 0) break;
+                      event.pts += over_point || (total_hours > 0 ? 0.5 : 0);
+                    }
+
                   } else if (event.tips_pm > 0 && midday === 'pm') {
                     if (acc.type == 'restaurant2' && !role_name.includes('Event')) break;
                     pts = total_hours > 0 ? 0.5 : 0;
@@ -2489,7 +2512,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                       serverPool.pts += over_point || (0.4 * daily_pts);
                     }
                   } else if (acc.type === 'restaurant2') {
-                    if (role_name === 'Runner') {
+                    if (role_name === 'Runner' || role_name === 'Brunch Runner') {
                       pts = (0.55 * daily_pts);
                       if (over_point === 0) break;
                       if (midday === 'pm') {
@@ -2497,7 +2520,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                       } else {
                         serverPool.pts += over_point || (0.55 * daily_pts);
                       }
-                    } else if (role_name === 'Busser' || role_name === 'Server Assistant') {
+                    } else if (role_name === 'Busser' || role_name === 'Brunch Busser' || role_name === 'Server Assistant' || role_name === 'Brunch Server Assistant') {
                       pts = (0.45 * daily_pts);
                       if (over_point === 0) break;
                       if (midday === 'pm') {
@@ -2510,19 +2533,27 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   break;
                 }
                 case 'Host':
+                case 'Brunch Host':
                 case 'Events Reception':
                 case 'Event Reception':
                 case 'Reception':
                 case 'Receptionist':
                 case 'Lead Host':
+                case 'Lead Brunch Host':
                 case 'Event Host':
                 case 'Trainer Host':
                 case 'Anchor Host': {
                   if (event.tips > 0 && midday !== 'pm') {
                     if (acc.type == 'restaurant2') {
-                      pts = total_hours > 0 ? 0.15 : 0;
-                      if (over_point === 0) break;
-                      event.pts += over_point || (total_hours > 0 ? 0.15 : 0);
+                      if (role_name === 'Brunch Host' || role_name === 'Lead Brunch Host') {
+                        pts = total_hours > 0 ? 0.1 : 0;
+                        if (over_point === 0) break;
+                        event.pts += over_point || (total_hours > 0 ? 0.1 : 0)
+                      } else {
+                        pts = total_hours > 0 ? 0.15 : 0;
+                        if (over_point === 0) break;
+                        event.pts += over_point || (total_hours > 0 ? 0.15 : 0);
+                      }
                     } else {
                       pts = total_hours > 0 ? 0.25 : 0;
                       if (over_point === 0) break;
@@ -2559,10 +2590,20 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     } else {
                       serverPool.pts += over_point || (0.1 * daily_pts);
                     }
+                  } else if (acc.type == 'restaurant2' && trading_day > '2024-10-22') {
+                    pts = 0.1 * daily_pts;
+                    if (over_point === 0) break;
+                    if (midday === 'pm') {
+                      serverPool.pts_pm += over_point || (0.1 * daily_pts);
+                    }
+                    else {
+                      serverPool.pts += over_point || (0.1 * daily_pts);
+                    }
                   }
                   break;
                 }
                 case 'Barback':
+                case 'Brunch Barback':
                 case 'Event Barback':
                 case 'Trainer Barback':
                 case 'Events Barback': {
@@ -2606,6 +2647,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 }
                 case 'Cooks':
                 case 'Line Cook':
+                case 'Lead Line Cook':
                 case 'Prep Cook':
                 case 'Dishwasher':
                 case 'Pastry Prep Cook':
@@ -2767,6 +2809,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             switch (role_name) {
               case 'Cooks':
               case 'Line Cook':
+              case 'Lead Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
@@ -2794,6 +2837,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             switch (role_name) {
               case 'Cooks':
               case 'Line Cook':
+              case 'Lead Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
@@ -2810,10 +2854,12 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           } else {
             switch (role_name) {
               case 'Server':
+              case 'Brunch Server':
               case 'Event Server':
               case 'Events Server':
               case 'Trainer Server':
               case 'Sommelier':
+              case 'Brunch Sommelier':
               case 'Lead Sommelier':
               case 'Events Sommelier': { //Server pool
                 if (acc.type === 'nightclub1') {
@@ -2848,6 +2894,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Barback':
+              case 'Brunch Barback':
               case 'Event Barback':
               case 'Trainer Barback':
               case 'Events Barback': {
@@ -2886,6 +2933,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Bartender':
+              case 'Brunch Bartender':
               case 'Event Bartender':
               case 'Events Bartender':
               case 'Trainer Bartender':
@@ -2925,8 +2973,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Runner':
+              case 'Brunch Runner':
               case 'Event Busser':
               case 'Busser':
+              case 'Brunch Busser':
               case 'Event Runner':
               case 'Busser':
               case 'Support':
@@ -2934,8 +2984,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               case 'Trainer Busser':
               case 'Trainer Runner':
               case 'Server Assistant':
+              case 'Brunch Server Assistant':
               case 'Event Server Assistant':
               case 'Event TSA':
+              case 'Events TSA':
               case 'TSA': {
                 if (acc.type === 'restaurant') {
                   if (midday === 'pm') {
@@ -2971,12 +3023,14 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 break;
               }
               case 'Host':
+              case 'Brunch Host':
               case 'Events Reception':
               case 'Event Reception':
               case 'Reception':
               case 'Receptionist':
               case 'Event Host':
               case 'Lead Host':
+              case 'Lead Brunch Host':
               case 'Trainer Host':
               case 'Anchor Host': {
                 if (acc.type === 'restaurant') {
@@ -2987,7 +3041,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   }
                 } else if (acc.type === 'restaurant1') {
                   final_tips = Math.round(serverPool.tips * point / serverPool.pts * 100) / 100;
-                } else if (acc.type === 'nightclub1') {
+                } else if (acc.type === 'nightclub1' || acc.type === 'restaurant2') {
                   if (midday === 'pm') {
                     final_tips = Math.round(serverPool.tips_pm * point / serverPool.pts_pm * 100) / 100;
                   } else {
@@ -2998,6 +3052,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               }
               case 'Cooks':
               case 'Line Cook':
+              case 'Lead Line Cook':
               case 'Prep Cook':
               case 'Dishwasher':
               case 'Pastry Prep Cook':
@@ -3201,6 +3256,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
       case 'Executive Chef':
       case 'Executive Sous Chef':
       case 'Line Cook':
+      case 'Lead Line Cook':
       case 'Pastry Prep Cook':
       case 'Porter':
       case 'Prep Cook':
@@ -3929,7 +3985,7 @@ export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest
       new_items = [...new_items, ...items.filter(item => {
         if (item.items_tax_rates && item.items_tax_rates.length > 0) {
           if (new Date(item.items_tax_rates[0]['updated_at']) > new Date(Date.now() - 6 * 3600000)) return true; else return false;
-        } else return false;
+        } else return true;
       }).map((item: any) => ({ ...item, location: loc }))];
 
       let categories: any[] = await getUpsertAPIResponse(
@@ -3939,7 +3995,7 @@ export const importItemsToPGSQL = functions.runWith(runtimeOpts).https.onRequest
         0
       )
       console.log('Got Categories For ', loc);
-      new_categories = [...new_categories, ...categories.map(ct => ({...ct, location: loc}))];
+      new_categories = [...new_categories, ...categories.map(ct => ({ ...ct, location: loc }))];
     }
 
     new_items = new_items.filter((item, index) => new_items.findIndex(item1 => item1.item_id === item.item_id) === index);
@@ -4012,6 +4068,12 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
     // GET Employees From Airtable
     let airtable_employees: any = await getEmployeeData();
     console.log('Got Employees From Airtable');
+
+    const categories = await db.query("Select * from categories;", []);
+    let categoryObj: any = {};
+    for (let category of categories.rows) {
+      categoryObj[category.id] = { ...category };
+    }
 
     let new_employees: any[] = [];
     for (let id of Object.keys(airtable_employees)) {
@@ -4129,13 +4191,15 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
       console.log(`Upsert ${new_check_items.length} Check Items To PostgreSQL`);
       let sql_str = new_check_items.reduce((sql, check_item, index) => {
         return sql + `($$${check_item.id}$$,$$${check_item.check_id}$$,$$${check_item.name}$$,$$${check_item.date}$$,$$${check_item.item_id}$$,`
-          + `${check_item.quantity || 0},${check_item.price || 0},${check_item.pre_tax_price || 0},${check_item.regular_price || 0},${check_item.cost || 0},${check_item.tax || 0},${check_item.comp_total},${check_item.comp_tax},$$${check_item.category_id}$$)` + (index < (new_check_items.length - 1) ? ', ' : ' ');
+          + `${check_item.quantity || 0},${check_item.price || 0},${check_item.pre_tax_price || 0},${check_item.regular_price || 0},${check_item.cost || 0},${check_item.tax || 0},${check_item.comp_total},${check_item.comp_tax},$$${check_item.category_id}$$,`
+          + `$$${categoryObj[check_item.category_id]['name']}$$,'${categoryObj[check_item.category_id]['parent_name']}')` + (index < (new_check_items.length - 1) ? ', ' : ' ');
       }, 'INSERT INTO check_items (id, check_id, name, date, item_id, '
       + 'quantity, price, pre_tax_price, regular_price, cost, '
-      + 'tax, comp_total, comp_tax, category_id) VALUES ');
+      + 'tax, comp_total, comp_tax, category_id, category, parent_category) VALUES ');
       sql_str += 'ON CONFLICT(id) DO UPDATE SET name = EXCLUDED.name, date = EXCLUDED.date, quantity = EXCLUDED.quantity, '
         + 'price = EXCLUDED.price, pre_tax_price = EXCLUDED.pre_tax_price, regular_price = EXCLUDED.regular_price, cost = EXCLUDED.cost, '
-        + 'tax = EXCLUDED.tax, comp_total = EXCLUDED.comp_total, comp_tax = EXCLUDED.comp_tax, category_id = EXCLUDED.category_id;'
+        + 'tax = EXCLUDED.tax, comp_total = EXCLUDED.comp_total, comp_tax = EXCLUDED.comp_tax, category_id = EXCLUDED.category_id, '
+        + 'category = EXCLUDED.category, parent_category = EXCLUDED.parent_category;'
       await db.query(sql_str, []);
     }
 
