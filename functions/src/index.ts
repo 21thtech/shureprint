@@ -31,9 +31,9 @@ const company_id = 223218;
 const company_id1 = 353647;
 const ACCESS_TOKEN = "36373134633762332d396631372d343830352d613261342d363538663835626565316535";
 const Upserve_API_KEY = "3048326406c4964a2b917b9518370685";
-// Expire In 2024/11/27
-const SOS_TOKEN = "jmTkhaaOiXTcIV3b-SbuJaNMhRo1KwBCLAO35oBueq_eTIsu_QHVoFHLkvRE_fMGWWInbfrHY4Tvcy90gcTcFy05YpDGY216B2uh7MGHxIfERM0sgiI4tlcm9iPiwoqLQbpv7TFZysVacuOwPJ5mlSTrwCmytBWV9Rid_z-4i59JFamEzVeN3SUQ45mbKOL6SrOUSIQ2zFPdbM7i3dQ0u5v9LNHmj2zTYhMV9ttnVEKRRiU2rtmywIcTbQCGFrWCvX1psN-Az2Gi3AaMYrRwsrd7XXEnQxQilqYo00Yv3IKP6tBj";
-// const SOS_REFRESH_TOKEN = "Y7PeDCjSmkIQUN_L-mQNww9ziuKsmJjOBDgbPJsGA4gxPXcJxaER5E9kji8fj2SUr18yTedv2GlYr3Jhwo-iWdn8V67bFGvmLgtK2-32c2aD3BlpiBJhv7yUmtDksDyFr-HlMNvSOPYOfqUWqwLK4YDRgAUFVltaCeuX3GEzdAtNq44c0yLElclkPXc8opYtUztWghZC5EXXDsUz5_be4_6sV5AqoY97FJkuoVWuWi4Hd2gBxinxNm6Mst0i652ckryapp3WKm6X07QEtITadgvMfhdB4726hE7j-tWEU2AIGU1_";
+// Expire In 2024/02/12
+const SOS_TOKEN = "CnyP5YdTS1O6joOKfAyIZowDNGa6UCwAuyJ56U3dVFdN0sl2-BQMtzwmtwJhCt7_Y7KNuuglg5t-NYY9mrWfLiSSJCH1Xp8SjCf3bdcCtfz-Sq1eMfGqBY3VOSNq8qjkMe6XtMp6cOdKN6Jh3dCggrqcCLFuIzX3BoF1OFOWZXMEkGqUgK8wgjJlNUr8coRMU-4Nqx8wtKbd9TbfLUthrbZXPZutkQSu4Qg1H_Z6oa_Us9TbJiv2Ch6kW6_kYlAK5vifPH23hhLNSkjI7BRx2xP03Jo-ClXC0r8cF_XJ8fj81fQ25jvw6nXdBq8390V_kOd_jA";
+// const SOS_REFRESH_TOKEN = "R1wxXeqRCPJJYxhI317e2lrfgW0LSQmOTP8VnHVZTdz9LIEMAnRSuHiuLbXUSPzrzThAed_5QGqCzElbAcJUQUaUvO-ewtvl5jVL_tX47cOy7CgUGgUKdhiCH6ZIpAGiB6yWbdVOzu3WWu394YsHBz24qj2F8UjxIOuDYzKUy3Kw6-Wb7SCLWeaYTqhG_087kszyx8SwRPrymxhdc3qMALFsdXS_dO2r2O7DDnGgS0m6EbpUVf3d35nAVWa3dpNo2CSVQjQwbLgySsD9mjikfuYJd8aSHuVA_IRwsli0avt2EI35zx3mrfERtx1vi64UZWlDlg";
 
 const Airtable = require('airtable');
 const base = new Airtable({ apiKey: 'pat4QLjT5Em257gfy.ca377661dda17528c99526de63d7862a591169526b20da3a34c4c9070f7f59f4' }).base('appm3mga3DgMuxH6M');
@@ -2340,6 +2340,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 continue;
               }
 
+              if (trading_day > '2024-11-17' && acc.location === 'Delilah Miami') {
+                acc.full_shift = 7;
+              }
               let daily_shift_pts = Math.round(total_hours_point / acc.full_shift * 100) / 100;
               if (midday === 'am') {
                 daily_shift_pts = Math.round(total_hours_point / ((acc.location_id === '430575' && isBrunchDay) ? 4.5 : 4) * 100) / 100;
