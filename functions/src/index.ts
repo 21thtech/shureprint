@@ -1903,7 +1903,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 middayObj[airtable_id + '_pm'] = 'pm';
               } else {
                 for (let shift of shifts_day) {
-                  middayObj[airtable_id] = (acc.location_id === '430575' && isBrunchDay) ? (role_name.includes('Brunch') ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null;
+                  middayObj[airtable_id] = (acc.location_id === '430575' && isBrunchDay) ? (role_name.includes('Brunch') ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '430575' ? 15 : 14) && shift.date.slice(0, 10) === trading_day.date ? 'am' : 'pm' : null;
 
                   // For some day which has special split times
                   if (splitTimes[acc.location + '(' + trading_day.date + ')']) {
@@ -1968,7 +1968,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
 
           let airtable_id = `${trading_day.date}_${id}`;
-          let midday = (acc.location_id === '430575' && isBrunchDay) ? (Number(check.close_time.slice(11, 13)) < 18 ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '430575' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
+          let midday = (acc.location_id === '430575' && isBrunchDay) ? (Number(check.close_time.slice(11, 13)) < 18 && check.close_time.slice(0, 10) === trading_day.date? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && isEventDay)) ? ((Number(check.open_time.slice(11, 13)) < (acc.location_id === '282511' ? 16 : acc.location_id === '430575' ? 15 : 14) && check.open_time.slice(0, 10) === trading_day.date) ? 'am' : 'pm') : null;
 
           if (splitTimes[acc.location + '(' + trading_day.date + ')']) {
             midday = Number(check.open_time.slice(11, 13)) < splitTimes[acc.location + '(' + trading_day.date + ')'] ? 'am' : 'pm';
@@ -1984,6 +1984,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           // if (acc.location_id === '430575' && isBrunchDay) {
           //   midday = check.items.findIndex((item: any) => item.name.includes('Brunch')) > -1 ? 'am' : 'pm';
           // }
+          console.log('Checks Info: Midday ' + midday + ', Open ' + check.open_time + ', Close ' + check.close_time + ', Employee: ' + check.employee_name + ', Role ' + check.employee_role_name);
           let total_tips = 0;
 
           if (!airtable_data[airtable_id]) {
@@ -2045,7 +2046,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           if (check.items) {
             let service_charges;
             if ((acc.type === 'nightclub1' || acc.type === 'restaurant2') && !isEvent) {
-              service_charges = check.items.filter((item: any) => item.name === 'Service Fee' || item.name === 'Service Fee II' || item.name === '4% Entertainment Fee').reduce((sum: number, item: any) => sum += Number(item.price), 0);
+              service_charges = check.items.filter((item: any) => item.name === 'Service Fee' || item.name === 'Service Fee II').reduce((sum: number, item: any) => sum += Number(item.price), 0);
               // if (acc.type === 'restaurant2') {
               //   service_charges *= 0.9;
               // }
@@ -2137,8 +2138,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           }
         }
 
+        console.log('ServerPool: ', serverPool);
+        console.log('bartenderPool: ', bartenderPool);
         // Exceptional Service Charge Or Tips
-
         if (acc.location === 'Delilah LA') {
           if (additional_data[trading_day.date]) {
             bartenderPool.tips += additional_data[trading_day.date];
@@ -2321,7 +2323,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   (['12065', '17414', '19557'].includes(user.user.employee_id) ? role.role_label : 'Server')
                   : role.role_label;
 
-              midday = (acc.location_id === '430575' && isBrunchDay) ? (role_name.includes('Brunch') ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) ? 'am' : 'pm' : null;
+              midday = (acc.location_id === '430575' && isBrunchDay) ? (role_name.includes('Brunch') ? 'am' : 'pm') : isEvent ? null : (acc.type === 'nightclub1' || (acc.location_id === '282511' && isWeekends) || (acc.location_id === '430575' && trading_day.date === '2024-02-25')) ? Number(shift.date.slice(11, 13)) < (acc.location_id === '282511' ? 15 : acc.location_id === '430575' ? 15 : 14) && shift.date.slice(0, 10) === trading_day.date ? 'am' : 'pm' : null;
 
               if (splitTimes[acc.location + '(' + trading_day.date + ')']) {
                 midday = Number(shift.date.slice(11, 13)) < splitTimes[acc.location + '(' + trading_day.date + ')'] ? 'am' : 'pm';
