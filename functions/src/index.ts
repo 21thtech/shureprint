@@ -2027,33 +2027,29 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
 
           if (!isEvent) {
             airtable_data[airtable_id]['AutoGrat'] += Number(check.mandatory_tip_amount);
-            if (midday === 'am') total_tips += Number(check.mandatory_tip_amount);
-            else total_tips_pm += Number(check.mandatory_tip_amount);
+            if (midday === 'pm') total_tips_pm += Number(check.mandatory_tip_amount);
+            else total_tips += Number(check.mandatory_tip_amount);
           }
 
           if (check.payments && !isEvent) {
             for (let payment of check.payments) {
               if (payment.type === 'Cash') {
                 airtable_data[airtable_id]['Cash Tips'] += Number(payment.tip_amount);
-                if (midday === 'am') total_tips += Number(payment.tip_amount);
-                else total_tips_pm += Number(payment.tip_amount);
+                if (midday === 'pm') total_tips_pm += Number(payment.tip_amount);
+                else total_tips += Number(payment.tip_amount);
               }
               if (payment.type === 'Credit' || payment.type === 'Gift Card' || payment.type === 'House Account' || payment.type === 'House Account'
                 || payment.type === 'Owners' || payment.type === 'Ticketmaster' || payment.type === 'Deposit' || payment.type === 'Delivery Account'
                 || payment.type === 'Dorsia') {
                 airtable_data[airtable_id]['Card Tips'] += Number(payment.tip_amount);
-                if (midday === 'am') total_tips += Number(payment.tip_amount);
-                else total_tips_pm += Number(payment.tip_amount);
+                if (midday === 'pm') total_tips_pm += Number(payment.tip_amount);
+                else total_tips += Number(payment.tip_amount);
               }
             }
             if (check.zone === 'Sushi Bar') {
               let temp_tips = 0;
               
-              if (midday === 'am') {
-                temp_tips = Math.round(total_tips * 0.7 * 100) / 100;
-                sushiPool.tips += temp_tips;
-                total_tips -= temp_tips;
-              } else {
+              if (midday === 'pm') {
                 temp_tips = Math.round(total_tips_pm * 0.7 * 100) / 100;
                 if(acc.type === 'nightclub1' && trading_day.date >= '2024-12-02') {
                   sushiPool.tips += temp_tips;  
@@ -2061,6 +2057,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   sushiPool.tips_pm += temp_tips;
                 }
                 total_tips_pm -= temp_tips;
+              } else {
+                temp_tips = Math.round(total_tips * 0.7 * 100) / 100;
+                sushiPool.tips += temp_tips;
+                total_tips -= temp_tips;
               }
               airtable_data[airtable_id]['Total Tips'] += temp_tips;
             }
@@ -2078,8 +2078,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                 if(acc.type === 'nightclub1' && trading_day.date >= '2024-12-02'){
                   sushiPool.tips += temp_service_charges;
                 } else {
-                  if (midday === 'am' ) sushiPool.tips += temp_service_charges;
-                  else sushiPool.tips_pm += temp_service_charges;
+                  if (midday === 'pm' ) sushiPool.tips_pm += temp_service_charges;
+                  else sushiPool.tips += temp_service_charges;
                 }
                 service_charges -= temp_service_charges;
               }
@@ -2132,8 +2132,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
               event.tips += service_charges;
             }
           }
-          if (midday === 'am' ) airtable_data[airtable_id]['Total Tips'] += total_tips;
-          else airtable_data[airtable_id]['Total Tips'] += total_tips_pm;
+          if (midday === 'pm' ) airtable_data[airtable_id]['Total Tips'] += total_tips_pm;
+          else airtable_data[airtable_id]['Total Tips'] += total_tips;
           // if(trading_day.date === '2024-11-25') {serverPool.tips +=100; serverPool.tips_pm -=100;}
           // Apply distribution Rule
           switch (role_name) {
@@ -2320,10 +2320,13 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         if ((event.tips > 0 && !isPartialBuyoutDate) || ((trading_day.date <= '2023-12-14' && trading_day.date >= '2023-12-12' || isBrunchDay) && acc.location === 'Delilah Miami')) {
           console.log(`Event Tips: ${event.tips}`);
           event.tips += serverPool.tips + serverPool.service_charge + bartenderPool.tips + bartenderPool.service_charge;
+          if(acc.location === 'Delilah Miami') event.tips += serverPool.tips_pm + serverPool.service_charge_pm + bartenderPool.tips_pm + bartenderPool.service_charge_pm; // added in Dec 10 for Delilah Miami
+          console.log(`Event Tips new: ${event.tips}`);
         }
         if (event.tips_pm > 0 && !isPartialBuyoutDate) {
           console.log(`Event Tips PM: ${event.tips_pm}`);
           event.tips_pm += serverPool.tips_pm + serverPool.service_charge_pm + bartenderPool.tips_pm + bartenderPool.service_charge_pm;
+          console.log(`Event Tips PM new: ${event.tips_pm}`);
         }
 
         // if (isPartialBuyoutDate && !isEvent) {
@@ -2810,8 +2813,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                         //for BSC, boh pool is one for all day
                         bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                       } else {
-                        if(midday === 'am') bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                        else bohPool.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                        if(midday === 'pm') bohPool.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                        else bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                       }
                       
                     }
@@ -2821,8 +2824,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     if (acc.type === 'nightclub1' && trading_day.date >= '2024-12-02') {
                       bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     } else {
-                      if (midday === 'am' ) bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                      else bohPool.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                      if (midday === 'pm' ) bohPool.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                      else bohPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                     }
                   }
                   break;
@@ -2839,8 +2842,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                       if(acc.type === 'nightclub1' && trading_day.date >= '2024-12-02') {
                         sushiPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                       } else {
-                        if (midday === 'am') sushiPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
-                        else sushiPool.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                        if (midday === 'pm') sushiPool.pts_pm += over_point || (total_hours > 0 ? 0.5 : 0);
+                        else sushiPool.pts += over_point || (total_hours > 0 ? 0.5 : 0);
                       }
                       
                     }
@@ -2860,7 +2863,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             }
           }
         }
-
+        
         if (acc.location === 'Bird Streets Club' && trading_day.date === '2023-12-04') {
           event.pts += 1; // Irina's AM Pool
         } else if (acc.location === 'Bird Streets Club' && trading_day.date === '2024-02-04') {
@@ -2886,11 +2889,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           temp_tips_pm = bartenderPool.pts_pm > 0 ? Math.round(0.15 * serverPool.tips_pm * 100) / 100 : 0;
           busserRunnerPool.tips_pm = busserRunnerPool.pts_pm > 0 ? Math.round(0.285 * serverPool.tips_pm * 100) / 100 : 0;
           receptionHostPool.tips_pm = receptionHostPool.pts_pm > 0 ? Math.round(0.015 * serverPool.tips_pm * 100) / 100 : 0;
+          // serverPool.tips -= busserRunnerPool.tips + receptionHostPool.tips;
+          // serverPool.tips_pm -= busserRunnerPool.tips_pm + receptionHostPool.tips_pm;
         } else if (acc.type === 'restaurant1') {
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
+
         } else if (acc.type === 'restaurant2') {
           serverPool.tips += serverPool.service_charge;
           bartenderPool.tips += bartenderPool.service_charge;
+          
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.05 * serverPool.tips * 100) / 100 : 0;
           let temp_service_charge = bartenderPool.pts > 0 ? Math.round(0.05 * serverPool.service_charge * 100) / 100 : 0;
           serverPool.service_charge -= temp_service_charge;
@@ -2903,6 +2910,10 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let temp_service_charge_pm = bartenderPool.pts_pm > 0 ? Math.round(0.05 * serverPool.service_charge_pm * 100) / 100 : 0;
           serverPool.service_charge_pm -= temp_service_charge_pm;
           bartenderPool.service_charge_pm += temp_service_charge_pm;
+          if(trading_day.date >= '2024-12-09') {
+            temp_tips = 0;
+            temp_tips_pm = 0;
+          }
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
         } else if (acc.type === 'nightclub1') {
@@ -2925,13 +2936,15 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
             bohPool.tips = Math.round(0.15 * ((event.tips > 0 ? 0 : serverPool.service_charge + bartenderPool.service_charge)) * 100) / 100;
             bohPool.tips_pm = Math.round(0.15 * ((event.tips_pm > 0 ? 0 : serverPool.service_charge_pm + bartenderPool.service_charge_pm)) * 100) / 100;
           }
+
           serverPool.tips += serverPool.service_charge * 0.85;
           serverPool.tips_pm += serverPool.service_charge_pm * 0.85;
           bartenderPool.tips += bartenderPool.service_charge * 0.85;
           bartenderPool.tips_pm += bartenderPool.service_charge_pm * 0.85;
           temp_tips = bartenderPool.pts > 0 ? Math.round(0.15 * serverPool.tips * 100) / 100 : 0;
           temp_tips_pm = bartenderPool.pts_pm > 0 ? Math.round(0.15 * serverPool.tips_pm * 100) / 100 : 0;
-
+        
+          
           // For the day with no sushi cook, their tips goes to Boh pool
          
           if (acc.type === 'nightclub1' && trading_day.date >= '2024-12-02') {
@@ -2946,6 +2959,18 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
         serverPool.tips -= temp_tips + busserRunnerPool.tips + receptionHostPool.tips;
         bartenderPool.tips_pm += temp_tips_pm;
         serverPool.tips_pm -= temp_tips_pm + busserRunnerPool.tips_pm + receptionHostPool.tips_pm;
+        if(acc.type === 'nightclub1' && trading_day.date >= '2024-12-02'){
+          //from 2024-12-02 serverpool and bartender pool is one for BSC
+          serverPool.pts += bartenderPool.pts;
+          serverPool.pts_pm += bartenderPool.pts_pm;
+          serverPool.tips += bartenderPool.tips;
+          serverPool.tips_pm += bartenderPool.tips_pm;
+          serverPool.service_charge += bartenderPool.service_charge;
+          serverPool.service_charge_pm += bartenderPool.service_charge_pm;
+          serverPool.count += bartenderPool.count;
+          serverPool.count_pm += bartenderPool.count_pm;
+          bartenderPool = serverPool;
+        }
         sql_str_2 += `($$${trading_day.date}_${acc.location}$$, $$${trading_day.date}$$, ${temp_tips}, ${temp_tips_pm},$$${acc.location}$$),`;
 
         console.log('Date: ', trading_day.date);
@@ -3235,8 +3260,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if(trading_day.date >= '2024-12-02') {
                     final_tips = Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                   } else {
-                    if (midday === 'am') final_tips = Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
-                    else final_tips = Math.round(bohPool.tips_pm * point / (bohPool.pts_pm + sushiPool.pts_pm) * 100) / 100;
+                    if (midday === 'pm') final_tips = Math.round(bohPool.tips_pm * point / (bohPool.pts_pm + sushiPool.pts_pm) * 100) / 100;
+                    else final_tips = Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                   }
                   
                 }
@@ -3247,8 +3272,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                   if (trading_day.date >= '2024-12-02') {
                     final_tips = Math.round(sushiPool.tips * point / sushiPool.pts * 100) / 100 + Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                   } else {
-                    if (midday === 'am') final_tips = Math.round(sushiPool.tips * point / sushiPool.pts * 100) / 100 + Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
-                    else final_tips = Math.round(sushiPool.tips_pm * point / sushiPool.pts_pm * 100) / 100 + Math.round(bohPool.tips_pm * point / (bohPool.pts_pm + sushiPool.pts_pm) * 100) / 100;
+                    if (midday === 'pm') final_tips = Math.round(sushiPool.tips_pm * point / sushiPool.pts_pm * 100) / 100 + Math.round(bohPool.tips_pm * point / (bohPool.pts_pm + sushiPool.pts_pm) * 100) / 100;
+                    else final_tips = Math.round(sushiPool.tips * point / sushiPool.pts * 100) / 100 + Math.round(bohPool.tips * point / (bohPool.pts + sushiPool.pts) * 100) / 100;
                   }
                   
                 }
@@ -3434,6 +3459,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
   for (let key of Object.keys(airtable_data)) {
     let employee_id = key.includes('_pm') ? key.slice(0, -3).slice(11) : key.slice(11);
     let row = airtable_data[key];
+    const flag = Object.keys(row).every(k=> row[k] === row[k]);
+    if (!flag) console.log(row);
     let category = 'FOH';
     switch (row['Role Name']) {
       case 'Cooks':
@@ -3496,6 +3523,7 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
     if (!isEvent) { // Not For Delilah Miami Partial Event
       await db.query(`DELETE from reports${simulate ? '_simulation' : ''} WHERE day >= \'${fromDate}\' AND day <= \'${toDate}\'` + (locationId ? ` AND location = \'${location}\';` : ";"), []);
       if (converted_airtable_data.length) {
+        console.log(converted_airtable_data.length);
         await db.query(sql_str, []);
       }
 
@@ -4392,6 +4420,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
         new_checks = new_checks.filter((check, index) => new_checks.findIndex(check1 => check1.id === check.id) === index);
       }
       let sql_str = new_checks.reduce((sql, check, index) => {
+        console.log('Checks to PGSQL', check);
         return sql + `($$${check.id}$$,$token$${check.name}$token$,${check.number},$$${check.status}$$,${check.sub_total},${check.tax_total},`
           + `${check.total},${check.mandatory_tip_amount},$$${check.open_time}$$,$$${check.close_time || check.open_time}$$,$$${check.employee_name}$$,`
           + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
@@ -4875,7 +4904,9 @@ export const updateStepStatusInLimbo = functions.runWith(runtimeOpts).https.onRe
         }
       }
       // updateRecordsOnAirtable
-      res.status(200).send(updated_limbos);
+      console.log("Updating Limbo List Step Status");
+      updateRecordsOnAirtable('Limbo List(Specialty, New Stock, Dropship)', updated_limbos);
+      res.status(200).send("Limbo Step Status update success");
     } catch (e) {
       console.log(e);
       res.status(500).send(e);
