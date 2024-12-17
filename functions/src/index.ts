@@ -2910,9 +2910,9 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
           let temp_service_charge_pm = bartenderPool.pts_pm > 0 ? Math.round(0.05 * serverPool.service_charge_pm * 100) / 100 : 0;
           serverPool.service_charge_pm -= temp_service_charge_pm;
           bartenderPool.service_charge_pm += temp_service_charge_pm;
-          if(trading_day.date >= '2024-12-09') {
-            temp_tips = 0;
-            temp_tips_pm = 0;
+          if(trading_day.date >= '2024-12-02') {
+            temp_tips = temp_service_charge;
+            temp_tips_pm = temp_service_charge_pm;
           }
         } else if (acc.type === 'nightclub') {
           temp_tips = (bartenderPool.pts + barbackPool.pts) > 0 ? Math.round(0.075 * serverPool.tips * 100) / 100 : 0;
@@ -3107,7 +3107,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     final_tips = 0;
                     break;
                   }
-                  final_tips = Math.round(bartenderPool.tips * (barbackPool.count / (bartenderPool.count + barbackPool.count)) * point / barbackPool.pts * 100) / 100;
+                  // final_tips = Math.round(bartenderPool.tips * (barbackPool.count / (bartenderPool.count + barbackPool.count)) * point / barbackPool.pts * 100) / 100;
+                  final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / bartenderPool.pts_pm * 100) / 100;
@@ -3148,7 +3149,8 @@ const getTipReport = async (fromDate: string, toDate: string, locationId?: strin
                     final_tips = 0;
                     break;
                   }
-                  final_tips = Math.round(bartenderPool.tips * (bartenderPool.count / (bartenderPool.count + barbackPool.count)) * point / bartenderPool.pts * 100) / 100;
+                  // final_tips = Math.round(bartenderPool.tips * (bartenderPool.count / (bartenderPool.count + barbackPool.count)) * point / bartenderPool.pts * 100) / 100;
+                  final_tips = Math.round(bartenderPool.tips * point / (bartenderPool.pts + barbackPool.pts) * 100) / 100;
                 } else if (acc.type === 'restaurant1' || acc.type === 'restaurant2') {
                   if (midday === 'pm') {
                     final_tips = Math.round(bartenderPool.tips_pm * point / bartenderPool.pts_pm * 100) / 100;
@@ -4420,7 +4422,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
         new_checks = new_checks.filter((check, index) => new_checks.findIndex(check1 => check1.id === check.id) === index);
       }
       let sql_str = new_checks.reduce((sql, check, index) => {
-        console.log('Checks to PGSQL', check);
+       
         return sql + `($$${check.id}$$,$token$${check.name}$token$,${check.number},$$${check.status}$$,${check.sub_total},${check.tax_total},`
           + `${check.total},${check.mandatory_tip_amount},$$${check.open_time}$$,$$${check.close_time || check.open_time}$$,$$${check.employee_name}$$,`
           + `$$${check.employee_role_name}$$,$$${check.employee_id}$$,$$${check.employee ? check.employee : 'manager'}$$,${check.guest_count},`
@@ -4437,6 +4439,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
         + 'total = EXCLUDED.total, open_time = EXCLUDED.open_time, close_time = EXCLUDED.close_time, updated_at = EXCLUDED.updated_at,'
         + 'voidcomp_reason_text = EXCLUDED.voidcomp_reason_text, voidcomp_type = EXCLUDED.voidcomp_type, voidcomp_value = EXCLUDED.voidcomp_value,'
         + 'comp_total=EXCLUDED.comp_total, non_revenue_total = EXCLUDED.non_revenue_total, revenue_total = EXCLUDED.revenue_total;'
+        
       await db.query(sql_str, []);
     }
 
