@@ -4071,23 +4071,23 @@ const listRecordsOnAirtable = (tableName: string, fields: string[], maxRecords: 
     });
   })
 }
-const listLimbosOnAirtable = () => {
-  return new Promise(async (resolve) => {
-    let results: any[] = [];
-    cin7_base('Limbo List(Specialty, New Stock, Dropship)').select({
-      maxRecords: 50,
-      view: "All",
-      sort: [{field: "Last Updated", direction: "desc"}]
-    }).eachPage(function page(records: any[], fetchNextPage: any) {
-      results = [...results, ...records];
-      fetchNextPage();
-    }, function done(err: any) {
-      if (err) { console.error(err); resolve([]); }
-      console.log(`Get Records From Limbo List(Specialty, New Stock, Dropship) Table`);
-      resolve(results);
-    });
-  })
-}
+// const listLimbosOnAirtable = () => {
+//   return new Promise(async (resolve) => {
+//     let results: any[] = [];
+//     cin7_base('Limbo List(Specialty, New Stock, Dropship)').select({
+//       maxRecords: 50,
+//       view: "All",
+//       sort: [{field: "Last Updated", direction: "desc"}]
+//     }).eachPage(function page(records: any[], fetchNextPage: any) {
+//       results = [...results, ...records];
+//       fetchNextPage();
+//     }, function done(err: any) {
+//       if (err) { console.error(err); resolve([]); }
+//       console.log(`Get Records From Limbo List(Specialty, New Stock, Dropship) Table`);
+//       resolve(results);
+//     });
+//   })
+// }
 
 const sleep = (delay: number) => new Promise((resolve) => setTimeout(resolve, delay))
 
@@ -4392,6 +4392,10 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
         let role_name = (loc === 'Slab BBQ LA' || loc === 'Slab BBQ Pasadena') ? 'Server' : check.employee_role_name;
         role_name = getRoleName(role_name, loc);
         let employee_id = employee ? `${employee['employee_identifier']}_${employee['first_name'].trim()}_${acc.location}_${role_name}` : 'manager';
+        let service_charges = check.items.filter((item: any) => item.name === 'Service Fee' || item.name === 'Service Fee II').reduce((sum: number, item: any) => sum += Number(item.price), 0);
+        check.service_charge = service_charges;
+        // console.log(' Check service Charge: ' , check.service_charge, check.location);
+        if(loc === 'Bird Streets Club') check.sub_total -= check.service_charge;
         new_checks = [...new_checks, {
           ...check,
           location: loc,
@@ -4416,6 +4420,7 @@ export const importDataToPGSQL = functions.runWith(runtimeOpts).https.onRequest(
 
     if (new_checks.length) {
       console.log(`Upsert ${new_checks.length} Checks To PostgreSQL`);
+      
       let duplicates = new_checks.filter((check, index) => new_checks.findIndex(check1 => check1.id === check.id) !== index);
       if (duplicates.length > 0) {
         console.log(`Found Some Duplicates Checks: `, duplicates.length);
@@ -4868,52 +4873,52 @@ export const updatePickTicketsItemLines = functions.runWith(runtimeOpts).https.o
   }
 })
 
-export const updateStepStatusInLimbo = functions.runWith(runtimeOpts).https.onRequest(async (req: any, res: any) => {
-  res.set('Access-Control-Allow-Origin', '*');
-  res.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
-  res.set('Access-Control-Allow-Headers', '*');
+// export const updateStepStatusInLimbo = functions.runWith(runtimeOpts).https.onRequest(async (req: any, res: any) => {
+//   res.set('Access-Control-Allow-Origin', '*');
+//   res.set('Access-Control-Allow-Methods', 'GET, PUT, POST, OPTIONS');
+//   res.set('Access-Control-Allow-Headers', '*');
 
-  if (['OPTIONS', 'GET', 'PUT'].indexOf(req.method) > - 1) {
-    res.status(405).send('Method Not Allowed');
-  } else {
-    try {
-      let updated_limbos: any = await listLimbosOnAirtable();
-      // console.log(updated_limbos);
-      for(let item of updated_limbos){
-        // console.log(item.fields['Identity'], item.fields['RECEIVED @'], item.fields['Archive'] == false, item.fields['1st Delivery Qty Requested'] );
-        if(item.fields['RECEIVED @'] == true && item.fields['Archive'] == undefined && item.fields['1st Delivery Qty Requested'] != '' ) {
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 8';
-        } else if (item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] !='' && item.fields['Markup'] != '' && item.fields['CLIENT CONFIRMED'] == true && item.fields["ORDERED & NEW STOCK ITEM & SKU"] == true && item.fields['Archive'] == undefined && item.fields['RECEIVED @'] == undefined) {
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 7';
-          // console.log('step7')
-        } else if (item.fields["^APPROVED ^"] == true && item.fields['CLIENT CONFIRMED'] == true && item.fields["ORDERED & NEW STOCK ITEM & SKU"] == undefined && (item.fields['PAID'] == true || item.fields['TYPE REQUIRED'] == 'New Stock Item' || item.fields['TYPE REQUIRED'] == 'Update Par-Request from Sales') && item.fields['Archive'] == undefined){
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 6';
-          // console.log('step6')
-        } else if (item.fields["^APPROVED ^"] == true && item.fields['CLIENT CONFIRMED'] == true && item.fields["ORDERED & NEW STOCK ITEM & SKU"] == undefined && item.fields['PAID'] == undefined && item.fields['TYPE REQUIRED'] != 'New Stock Item' && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined){
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 5';
-          // console.log('step5')
-        } else if (item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] !='' && item.fields['Markup'] != '' && item.fields['CLIENT CONFIRMED'] == undefined && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined){
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 4';
-          // console.log('step4')
-        } else if(item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] !='' && item.fields['Markup'] == undefined && item.fields['CLIENT CONFIRMED'] == undefined && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined){
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 3';
-          // console.log('step3')
-        } else if(item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] == undefined && item.fields['CLIENT CONFIRMED'] == undefined && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined && item.fields['Prev Price'] != ''){
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 2';
-          // console.log('step2')
-        } else if(item.fields['Supplier Cost'] == undefined && item.fields['SP SKU'] == undefined && item.fields["^APPROVED ^"] == undefined && item.fields["^NOT APPROVED^"] == undefined && item.fields['Archive'] == undefined){
-          updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 1';
-          // console.log('step1')
-        }
-      }
-      // updateRecordsOnAirtable
-      console.log("Updating Limbo List Step Status");
-      updateRecordsOnAirtable('Limbo List(Specialty, New Stock, Dropship)', updated_limbos);
-      res.status(200).send("Limbo Step Status update success");
-    } catch (e) {
-      console.log(e);
-      res.status(500).send(e);
-    }
-  }
-})
+//   if (['OPTIONS', 'GET', 'PUT'].indexOf(req.method) > - 1) {
+//     res.status(405).send('Method Not Allowed');
+//   } else {
+//     try {
+//       let updated_limbos: any = await listLimbosOnAirtable();
+//       // console.log(updated_limbos);
+//       for(let item of updated_limbos){
+//         // console.log(item.fields['Identity'], item.fields['RECEIVED @'], item.fields['Archive'] == false, item.fields['1st Delivery Qty Requested'] );
+//         if(item.fields['RECEIVED @'] == true && item.fields['Archive'] == undefined && item.fields['1st Delivery Qty Requested'] != '' ) {
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 8';
+//         } else if (item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] !='' && item.fields['Markup'] != '' && item.fields['CLIENT CONFIRMED'] == true && item.fields["ORDERED & NEW STOCK ITEM & SKU"] == true && item.fields['Archive'] == undefined && item.fields['RECEIVED @'] == undefined) {
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 7';
+//           // console.log('step7')
+//         } else if (item.fields["^APPROVED ^"] == true && item.fields['CLIENT CONFIRMED'] == true && item.fields["ORDERED & NEW STOCK ITEM & SKU"] == undefined && (item.fields['PAID'] == true || item.fields['TYPE REQUIRED'] == 'New Stock Item' || item.fields['TYPE REQUIRED'] == 'Update Par-Request from Sales') && item.fields['Archive'] == undefined){
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 6';
+//           // console.log('step6')
+//         } else if (item.fields["^APPROVED ^"] == true && item.fields['CLIENT CONFIRMED'] == true && item.fields["ORDERED & NEW STOCK ITEM & SKU"] == undefined && item.fields['PAID'] == undefined && item.fields['TYPE REQUIRED'] != 'New Stock Item' && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined){
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 5';
+//           // console.log('step5')
+//         } else if (item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] !='' && item.fields['Markup'] != '' && item.fields['CLIENT CONFIRMED'] == undefined && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined){
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 4';
+//           // console.log('step4')
+//         } else if(item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] !='' && item.fields['Markup'] == undefined && item.fields['CLIENT CONFIRMED'] == undefined && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined){
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 3';
+//           // console.log('step3')
+//         } else if(item.fields["^APPROVED ^"] == true && item.fields['Supplier Cost'] == undefined && item.fields['CLIENT CONFIRMED'] == undefined && item.fields['Archive'] == undefined && item.fields['Par Updated'] == undefined && item.fields['Converted to Stock'] == undefined && item.fields['Prev Price'] != ''){
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 2';
+//           // console.log('step2')
+//         } else if(item.fields['Supplier Cost'] == undefined && item.fields['SP SKU'] == undefined && item.fields["^APPROVED ^"] == undefined && item.fields["^NOT APPROVED^"] == undefined && item.fields['Archive'] == undefined){
+//           updated_limbos[updated_limbos.findIndex((i:any) => item.fields['Identity'] == i.fields['Identity'])].fields['Step Status'] = 'Step 1';
+//           // console.log('step1')
+//         }
+//       }
+//       // updateRecordsOnAirtable
+//       console.log("Updating Limbo List Step Status");
+//       updateRecordsOnAirtable('Limbo List(Specialty, New Stock, Dropship)', updated_limbos);
+//       res.status(200).send("Limbo Step Status update success");
+//     } catch (e) {
+//       console.log(e);
+//       res.status(500).send(e);
+//     }
+//   }
+// })
 
